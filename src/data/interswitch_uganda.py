@@ -12,7 +12,7 @@ import pandas as pd
 
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from src.utilities.db import *
+from src.utilities.aws import *
 
 
 # warehouse_hook = PostgresHook(postgres_conn_id='rds_afsg_ds_prod_postgresql_dwh', schema='afsg_ds_prod_postgresql_dwh')
