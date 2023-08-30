@@ -1,4 +1,4 @@
-project_dir: ../
+project_dir: ./
 
 prefix: "DWH"
 
