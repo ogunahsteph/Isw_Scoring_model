@@ -714,6 +714,58 @@ def get_scoring_results(config_path, raw_data) -> str or None:
     return failure_reason
 
 
+def combine_files(config_path, agent_id):
+        files = get_objects(
+            aws_access_key_id=Variable.get('AFSG_aws_access_key_id') if Variable.get('DEBUG') == 'FALSE' else None,
+            aws_secret_access_key=Variable.get('AFSG_aws_secret_access_key')if Variable.get('DEBUG') == 'FALSE' else None,
+            search=agent_id,
+            bucket_name=Variable.get('ISWUG_aws_s3_bucket_name')
+        )
+
+        if len(files) > 0:
+            combined = pd.concat([x['data'] for x in files], ignore_index=True)
+            combined['Balance'] = combined['Balance'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
+            combined['CreditAmount'] = combined['CreditAmount'].apply(
+                lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
+            combined['DebitAmount'] = combined['DebitAmount'].apply(
+                lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
+
+            combined.rename(columns={
+                'Date': 'time_', 'Terminal': 'terminal', 'RequestRef': 'request_ref',
+                'TranDesc': 'trxn_type', 'Biller': 'biller', 'Narration': 'narration',
+                'DebitAmount': 'debit_amt', 'CreditAmount': 'credit_amt', 'Balance': 'balance', 'Status': 'status'
+            }, inplace=True)
+
+
+            combined.drop_duplicates(subset=combined.columns.tolist(), inplace=True)
+
+            if combined.shape[0] > 0:
+                csv_buffer = StringIO()
+                combined.to_csv(path_or_buf=csv_buffer, index=False)
+                save_file_to_s3(
+                    s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
+                    bucket_name='afsg-ds-prod-postgresql-dwh-archive',
+                    file_bytes=csv_buffer.getvalue()
+                )
+                return combined
+            else:
+                logging.warning(f'All files for {agent_id} are empty')
+
+        return None
+
+
+def trigger_scoring(config_path, agent_id):
+    if agent_id is not None:
+        raw_data = combine_files(config_path, agent_id)
+        if raw_data is not None:
+            failure_reason = get_scoring_results(config_path, raw_data=raw_data)
+            return True
+        else:
+            raise pd.errors.EmptyDataError
+
+    return False
+
+
 if __name__ == "__main__":
     # Parameter arguments
     args = argparse.ArgumentParser()
@@ -722,5 +774,5 @@ if __name__ == "__main__":
     parsed_args = args.parse_args()
 
     print(f'\nScoring {parsed_args.agent_id} ...')
-    print(get_scoring_results(parsed_args.config, raw_data=parsed_args.agent_id))
+    print(trigger_scoring(parsed_args.config, agent_id=parsed_args.agent_id))
     print('=============================================================================\n')
