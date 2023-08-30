@@ -1,21 +1,26 @@
 import os
 import sys
 import logging
-import numpy as np
 import math as math
-import pandas as pd
 from dateutil.relativedelta import relativedelta
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+import numpy as np
+import pandas as pd
 
-warehouse_hook = PostgresHook(postgres_conn_id='rds_afsg_ds_prod_postgresql_dwh', schema='afsg_ds_prod_postgresql_dwh')
-mifos_hook = MySqlHook(mysql_conn_id='mifos_db', schema='mifostenant-tanda')
-interswitch_uganda_hook = MySqlHook(mysql_conn_id='interswitch_uganda_server', schema='iswug_staging')
+# from airflow.providers.mysql.hooks.mysql import MySqlHook
+# from airflow.providers.postgres.hooks.postgres import PostgresHook
 
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from src.utilities.db import *
+
+
+# warehouse_hook = PostgresHook(postgres_conn_id='rds_afsg_ds_prod_postgresql_dwh', schema='afsg_ds_prod_postgresql_dwh')
+# mifos_hook = MySqlHook(mysql_conn_id='mifos_db', schema='mifostenant-tanda')
+# interswitch_uganda_hook = MySqlHook(mysql_conn_id='interswitch_uganda_server', schema='iswug_staging')
 log_format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=log_format, level=logging.WARNING, datefmt="%H:%M:%S")
+
 
 def process_dates(df):
     df['time_'] = pd.to_datetime(df['time_'], format='%Y-%m-%d %H:%M')
@@ -566,7 +571,6 @@ def determine_if_qualified(df):
     return df
 
 
-
 def rules_summary_narration(df):
     trading_consistency_score = df['trading_consistency_score']
     age_on_network_score_ = df['age_on_network_score']
@@ -600,7 +604,7 @@ def rules_summary_narration(df):
         return 'Limit below product min : Limits assigned less than product thresholds: D001'
 
 
-def get_scoring_results(raw_data) -> str or None:
+def get_scoring_results(config_path, raw_data) -> str or None:
     product_id = 2
     raw_data = process_dates(raw_data)
 
@@ -637,7 +641,6 @@ def get_scoring_results(raw_data) -> str or None:
             transactions_data_df=transactions_data
         )
 
-
         previous_results = get_prev_scoring_results(terminal=client_data.iloc[0]['terminal'])
 
         current_results = results[['terminal', 'final_3_day_limit']]
@@ -661,7 +664,6 @@ def get_scoring_results(raw_data) -> str or None:
 
         results[['rules_summary_narration', "communication_to_client", "limit_reason_code"]] = results[
             "rules_summary_narration"].astype("str").str.split(":", expand=True)
-
 
         results['tenure'] = 3
 
@@ -710,3 +712,15 @@ def get_scoring_results(raw_data) -> str or None:
         )
 
     return failure_reason
+
+
+if __name__ == "__main__":
+    # Parameter arguments
+    args = argparse.ArgumentParser()
+    args.add_argument("--config", default="params.yaml")
+    args.add_argument("--agent_id", default="3IS02066")
+    parsed_args = args.parse_args()
+
+    print(f'\nScoring {parsed_args.agent_id} ...')
+    print(get_scoring_results(parsed_args.config, raw_data=parsed_args.agent_id))
+    print('=============================================================================\n')

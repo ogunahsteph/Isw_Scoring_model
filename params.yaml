@@ -1,0 +1,68 @@
+project_dir: ./
+
+prefix: "DWH"
+
+db_credentials:
+  dwh_env: ["DWH_HOST", "DWH_PORT", "DWH_DB_NAME", "DWH_USER", "DWH_PASSWORD"]
+  isw_env: ["ISW_HOST", "ISW_PORT", "ISW_DB_NAME", "ISW_USER", "ISW_PASSWORD"]
+  mifos_env: ["MIFOS_HOST", "MIFOS_PORT", "MIFOS_DB_NAME", "MIFOS_USER", "MIFOS_PASSWORD"]
+  path: .env
+
+bvn_nos: ["22329724760",
+          "22219089528",
+          "22272581254",
+          "22403268083",
+          "22210636484",
+          "22422834430",
+          "22383444220",
+          "22187480383",
+          "22330767497",
+          "22566509344",
+          "22279791960",
+          "22374136653",
+          "22237205984",
+          "22329236757",
+          "22312111678",
+          "22231999153",
+          "22159706127",
+          "22178794279",
+          "22161076302",
+          "22317896082",
+          "22203493896",
+          "22227979464",
+          "22354326386",
+          "22231561608",
+          "22156181943",
+          "22256973220",
+          "22153417946",
+          "22151967960",
+          "22367362490",
+          "22286202040",
+          "22160339471",
+          "22209333088",
+          "22442504096",
+          "22170014184",
+          "22192189839",
+          "22142602171",
+          "22253049881",
+          "22190745147"]
+
+loan_velocity_config:
+  products: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds']
+  partners: ['Safaricom Bloom 1.0', 'Safaricom Bloom 2.0', 'Solv', 'Tanda', 'Copia Device Financing', 'Jumia', 'Mezzanine', 'AC Group', 'SRDS (Bralirwa)']
+
+  products_in_scope: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds'] #['solv']
+
+  query_refresh: True
+  query_start_date: '2017-11-30'
+  query_end_date: '2023-07-01'
+
+  test_accounts: [7750]
+
+  raw_data_path: 'data/raw/loan_velocity_raw_{}.parquet'
+  clean_data_path: 'data/interim/loan_velocity_clean_{}.parquet'
+  features_data_path: 'data/interim/loan_velocity_features_{}.parquet'
+  aggregate_data_path: 'data/interim/loan_velocity_aggregate_{}.parquet'
+  package_data_path: 'data/processed/loan_velocity_package_{}.parquet'
+  merge_data_path_parquet: 'data/processed/loan_velocity_merge_final.parquet'
+  merge_data_path_excel: 'data/processed/loan_velocity_merge_final.xlsx'
