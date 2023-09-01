@@ -271,6 +271,9 @@ def load_loans_data(config_path, mifos_client_id: int, mifos_product_id: int) ->
     prefix = "MIFOS"
 
     print('\nPull loans data ...')
+    print(f'Mifos client ID: {mifos_client_id}')
+    print(f'Mifos product ID: {mifos_product_id}')
+
     sql_loans = f"""
         SELECT 
             id, client_id, principal_disbursed_derived, disbursedon_date, expected_maturedon_date,

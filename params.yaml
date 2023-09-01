@@ -8,7 +8,7 @@ db_credentials:
   mifos_env: ["MIFOS_HOST", "MIFOS_PORT", "MIFOS_DB_NAME", "MIFOS_USER", "MIFOS_PASSWORD"]
   path: .env
 
-agent_ids: ["3IS02066"]
+terminal_ids: ["3IS16325", "3IS12910"]
 
 s3_config:
   bucket_name_raw: afsg-dgt-prod-iswug-file-upload
