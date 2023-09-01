@@ -93,7 +93,6 @@ def calculate_6_months_scoring_summaries(df):
     agent_summaries_last_6_months['expected_transaction_days_last_6_months'] = (
                 (max_transactions_date - (max_transactions_date + relativedelta(months=-6))) / np.timedelta64(1,
                                                                                                               'D') + 1)
-
     agent_summaries_last_6_months['daily_trading_consistency_last_6_months'] = round(
         agent_summaries_last_6_months['unique_transaction_days'] / agent_summaries_last_6_months[
             'expected_transaction_days_last_6_months'], 2)
@@ -437,7 +436,7 @@ def determine_limit_for_first_loan(df):
 
 def get_scoring_refresh_date():
     scoring_refresh_date = (pd.Timestamp.today()).strftime("%Y-%m-%d")
-    scoring_referesh_date = pd.Timestamp(scoring_refresh_date)
+    # scoring_refresh_date = pd.Timestamp(scoring_refresh_date)
 
     return scoring_refresh_date
 
@@ -460,7 +459,6 @@ def get_model_version() -> str:
 
 
 def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, transactions_data_df: pd.DataFrame):
-
     # diff in months duration
     current_period = data["latest_transaction_date"].max()
     data['latest_trading_month'] = current_period
@@ -474,7 +472,6 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
                                         0)
 
     # #### Combining all scores
-
     # adding the scores columns to the dataframe by applying the functions to the dataframe
     data['trading_consistency_score'] = data.apply(lambda x: calc_trading_consistency_score(x), axis=1)
     data['age_on_network_score'] = data.apply(lambda x: age_on_network_score(x), axis=1)
@@ -483,20 +480,17 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     data['unique_number_of_commissions_score'] = data.apply(lambda x: unique_number_of_commissions_score(x), axis=1)
 
     # Sum to get the total score
-
     data['total_score'] = data.loc[:, ['trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
                                        'average_daily_debit_score', 'unique_number_of_commissions_score']].sum(axis=1)
 
     ## merge loans, staging and scoring results
     loans_and_staging_and_results = pd.merge(loans_data_staging, data, on='terminal', how='outer')
 
-
     ## get the number of loans per terminal
     loan_counts = loans_and_staging_and_results.groupby('terminal')['id'].nunique().rename(
         'count_of_loans').reset_index()
 
     ## merge loans per terminal with other df with other info
-
     loans_and_staging_and_results = pd.merge(loans_and_staging_and_results, loan_counts, on='terminal', how='outer')
 
     # #### 2. Time in between graduations
@@ -504,7 +498,6 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
         by='disbursedon_date')
 
     ## rank records so as to be able to pick only the latest loan
-
     loans_and_staging_and_results['loans_rank'] = loans_and_staging_and_results.groupby('terminal')[
         'disbursedon_date'].rank(ascending=True)
 
@@ -518,9 +511,7 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
         loans_and_staging_and_results.groupby('terminal')['loans_rank'].idxmax()].reset_index()
 
     ## convert dates from object to datetime
-
     latest_loan['disbursedon_date'] = pd.to_datetime(latest_loan['disbursedon_date'])
-
     latest_loan['expected_maturedon_date'] = pd.to_datetime(latest_loan['expected_maturedon_date'])
 
     ## get difference in months between latest disbursement date and scoring day (today)
@@ -647,7 +638,6 @@ def rules_summary_narration(df):
     final_allocated_limit_3_day = df['final_3_day_limit']
     is_qualified = df['is_qualified']
 
-
     if trading_consistency_score <= 0 and is_qualified == False:
         return 'Trading consistency is below set threshold and total score is < 600. : Based on historical and current information on your business and loan history, you do not currently meet Asante lending criteria: C004'
     elif average_daily_debit_score_ <= 0 and is_qualified == False:
@@ -673,16 +663,16 @@ def get_scoring_results(config_path, raw_data) -> str or None:
     table = config['upload_config']['table']
     target_fields = config['upload_config']['target_fields']
 
+    failure_reason = None
     product_id = 2
-    raw_data = process_dates(raw_data)
 
+    raw_data = process_dates(raw_data)
     commissions_summaries = calculate_commissions_summaries(raw_data)
     agent_summaries_last_6_months = calculate_6_months_scoring_summaries(raw_data)
     summaries_data = pd.merge(commissions_summaries, agent_summaries_last_6_months, on='terminal')
 
     client_data = load_staging_db_data(config_path, terminal_id=raw_data.iloc[0]['terminal'])
 
-    failure_reason = None
     if commissions_summaries.shape[0] == 0:
         failure_reason = 'Client does not have commission payments'
         logging.warning('Client does not have commission payments')
@@ -717,7 +707,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         current_results.rename(columns={'final_3_day_limit': 'current_limit'}, inplace=True)
 
-        scoring_results = pd.merge(previous_results, current_results, on = 'terminal')
+        scoring_results = pd.merge(previous_results, current_results, on='terminal')
 
         scoring_results['previous_limit'].fillna(0, inplace=True)
 
