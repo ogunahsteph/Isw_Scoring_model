@@ -436,7 +436,7 @@ def determine_limit_for_first_loan(df):
 
 def get_scoring_refresh_date():
     scoring_refresh_date = (pd.Timestamp.today()).strftime("%Y-%m-%d")
-    # scoring_refresh_date = pd.Timestamp(scoring_refresh_date)
+    scoring_refresh_date = pd.Timestamp(scoring_refresh_date) # TODO
 
     return scoring_refresh_date
 
