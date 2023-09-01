@@ -33,8 +33,8 @@ def get_objects(bucket_name: str, search: str, aws_access_key_id=None, aws_secre
     # Connect to S3 using access key and secret key
     s3 = boto3.client(
         's3',
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key
+        # aws_access_key_id=aws_access_key_id,
+        # aws_secret_access_key=aws_secret_access_key
     )
     files = []
 
@@ -99,8 +99,8 @@ def save_file_to_s3(file_bytes: str, bucket_name: str, s3_file_key: str) -> None
     # Connect to S3 using access key and secret key
     s3 = boto3.client(
         "s3",
-        aws_access_key_id=Variable.get('AFSG_aws_access_key_id') if Variable.get('DEBUG') == 'FALSE' else None,
-        aws_secret_access_key=Variable.get('AFSG_aws_secret_access_key') if Variable.get('DEBUG') == 'FALSE' else None
+        # aws_access_key_id=Variable.get('AFSG_aws_access_key_id') if Variable.get('DEBUG') == 'FALSE' else None,
+        # aws_secret_access_key=Variable.get('AFSG_aws_secret_access_key') if Variable.get('DEBUG') == 'FALSE' else None
     )
 
     # Upload the file bytes to S3 as an object

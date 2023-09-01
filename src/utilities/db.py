@@ -89,7 +89,7 @@ def db_connection(dwh_credentials, prefix, project_dir):
     # Connect to DB
     if prefix in ['DWH']:
         conn_str = f'postgresql+psycopg2://{user}:{quote_plus(password)}@{host}:{port}/{dbname}'
-    elif prefix in ['REMITA', 'MIFOS']:
+    elif prefix in ['ISW', 'MIFOS']:
         conn_str = f'mysql+pymysql://{user}:{quote_plus(password)}@{host}:{port}/{dbname}'
     conn = create_engine(conn_str)
 

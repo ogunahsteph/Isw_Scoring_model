@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import math as math
+from io import StringIO
 from dateutil.relativedelta import relativedelta
 
 import numpy as np
@@ -225,49 +226,96 @@ def unique_number_of_commissions_score(df):
         return 200
 
 
-def load_staging_db_data(terminal_id: str):
-    df = interswitch_uganda_hook.get_pandas_df(
-        sql="""
-            SELECT TerminalId as terminal, MifosClientId as client_id FROM Customers where TerminalId = %(terminal_id)s 
-        """,
-        parameters={'terminal_id': terminal_id}
-    )
-    return df
+def load_staging_db_data(config_path, terminal_id: str):
+    # df = interswitch_uganda_hook.get_pandas_df(
+    #     sql="""
+    #         SELECT TerminalId as terminal, MifosClientId as client_id FROM Customers where TerminalId = %(terminal_id)s 
+    #     """,
+    #     parameters={'terminal_id': terminal_id}
+    # )
+
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    dwh_credentials = config["db_credentials"]
+    prefix = "ISW"
+
+    print('\nPull customer info ...')
+    sql_cust_info = f"""
+        SELECT TerminalId as terminal, MifosClientId as client_id FROM Customers where TerminalId = %(terminal_id)s
+        """
+    cust_info = query_dwh(sql_cust_info, dwh_credentials, prefix, project_dir, {'terminal_id': terminal_id})
+
+    # return df
+    return cust_info
 
 
-def load_loans_data(mifos_client_id: int, mifos_product_id: int) -> pd.DataFrame:
+def load_loans_data(config_path, mifos_client_id: int, mifos_product_id: int) -> pd.DataFrame:
+    # df = mifos_hook.get_pandas_df(
+    #     sql="""
+    #         SELECT 
+    #             id, client_id, principal_disbursed_derived, disbursedon_date, expected_maturedon_date,
+    #             total_expected_repayment_derived
+    #         FROM `mifostenant-uganda`.m_loan 
+    #         where product_id = %(product_id)s and disbursedon_date is not null 
+    #         and loan_status_id in (300,600,700) and client_id = %(mifos_client_id)s
+    #     """,
+    #     parameters={
+    #         'mifos_client_id': mifos_client_id,
+    #         'product_id': mifos_product_id
+    #     }
+    # )
 
-    df = mifos_hook.get_pandas_df(
-        sql="""
-            SELECT 
-                id, client_id, principal_disbursed_derived, disbursedon_date, expected_maturedon_date,
-                total_expected_repayment_derived
-            FROM `mifostenant-uganda`.m_loan 
-            where product_id = %(product_id)s and disbursedon_date is not null 
-            and loan_status_id in (300,600,700) and client_id = %(mifos_client_id)s
-        """,
-        parameters={
-            'mifos_client_id': mifos_client_id,
-            'product_id': mifos_product_id
-        }
-    )
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    dwh_credentials = config["db_credentials"]
+    prefix = "MIFOS"
 
-    return df
+    print('\nPull loans data ...')
+    sql_loans = f"""
+        SELECT 
+            id, client_id, principal_disbursed_derived, disbursedon_date, expected_maturedon_date,
+            total_expected_repayment_derived
+        FROM `mifostenant-uganda`.m_loan 
+        where product_id = %(product_id)s and disbursedon_date is not null 
+        and loan_status_id in (300,600,700) and client_id = %(mifos_client_id)s
+        """
+    loans = query_dwh(sql_loans, dwh_credentials, prefix, project_dir, {'mifos_client_id': mifos_client_id, 'product_id': mifos_product_id})
+
+    # return df
+    return loans
 
 
-def load_transactions_data(client_id):
-    df = mifos_hook.get_pandas_df(
-        sql="""
-            SELECT 
+def load_transactions_data(config_path, client_id):
+    # df = mifos_hook.get_pandas_df(
+    #     sql="""
+    #         SELECT 
+    #             mlt.loan_id, mlt.transaction_date, mlt.amount 
+    #         from `mifostenant-uganda`.m_loan ml left join
+    #         `mifostenant-uganda`.m_loan_transaction mlt on ml.id = mlt.loan_id  
+    #         where mlt.transaction_type_enum = 2 and mlt.is_reversed = 0
+    #         and ml.client_id = %(client_id)s
+    #     """,
+    #     parameters={'client_id': client_id}
+    # )
+
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    dwh_credentials = config["db_credentials"]
+    prefix = "MIFOS"
+
+    print('\nPull transactions data ...')
+    sql_txn = f"""
+        SELECT 
                 mlt.loan_id, mlt.transaction_date, mlt.amount 
             from `mifostenant-uganda`.m_loan ml left join
             `mifostenant-uganda`.m_loan_transaction mlt on ml.id = mlt.loan_id  
             where mlt.transaction_type_enum = 2 and mlt.is_reversed = 0
             and ml.client_id = %(client_id)s
-        """,
-        parameters={'client_id': client_id}
-    )
-    return df
+        """
+    txn = query_dwh(sql_txn, dwh_credentials, prefix, project_dir, {'client_id': client_id})
+
+    # return df
+    return txn
 
 
 def calculate_loan_count_bands(df):
@@ -533,20 +581,33 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     return final_df
 
 
-def get_prev_scoring_results(terminal:str):
-    df = warehouse_hook.get_pandas_df(
-        sql="""
-            SELECT terminal, final_3_day_limit as previous_limit FROM interswitch_ug.scoring_results_view where terminal = %(terminal)s
-         """,
-        parameters={'terminal': terminal}
-    )
-    if df.empty:
-        df = pd.DataFrame({
+def get_prev_scoring_results(config_path, terminal:str):
+    # df = warehouse_hook.get_pandas_df(
+    #     sql="""
+    #         SELECT terminal, final_3_day_limit as previous_limit FROM interswitch_ug.scoring_results_view where terminal = %(terminal)s
+    #      """,
+    #     parameters={'terminal': terminal}
+    # )
+
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    dwh_credentials = config["db_credentials"]
+    prefix = "DWH"
+
+    print('\nPull previous scoring results ...')
+    sql_prev_scoring_results = f"""
+        SELECT terminal, final_3_day_limit as previous_limit FROM interswitch_ug.scoring_results_view where terminal = %(terminal)s
+        """
+    prev_scoring_results = query_dwh(sql_prev_scoring_results, dwh_credentials, prefix, project_dir, {'terminal': terminal})
+
+    if prev_scoring_results.empty:
+        prev_scoring_results = pd.DataFrame({
             'terminal': [terminal],
             'previous_limit': [0]
         }, index=[0])
 
-    return df
+    # return df
+    return prev_scoring_results
 
 
 def determine_if_to_graduate(df):
@@ -605,6 +666,10 @@ def rules_summary_narration(df):
 
 
 def get_scoring_results(config_path, raw_data) -> str or None:
+    config = read_params(config_path)
+    table = config['upload_config']['table']
+    target_fields = config['upload_config']['target_fields']
+
     product_id = 2
     raw_data = process_dates(raw_data)
 
@@ -612,7 +677,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
     agent_summaries_last_6_months = calculate_6_months_scoring_summaries(raw_data)
     summaries_data = pd.merge(commissions_summaries, agent_summaries_last_6_months, on='terminal')
 
-    client_data = load_staging_db_data(terminal_id=raw_data.iloc[0]['terminal'])
+    client_data = load_staging_db_data(config_path, terminal_id=raw_data.iloc[0]['terminal'])
 
     failure_reason = None
     if commissions_summaries.shape[0] == 0:
@@ -623,6 +688,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         logging.warning('Client not Found in Customers Table')
     else:
         loans_data = load_loans_data(
+            config_path,
             mifos_client_id=client_data.iloc[0]['client_id'],
             mifos_product_id=product_id
         )
@@ -633,7 +699,8 @@ def get_scoring_results(config_path, raw_data) -> str or None:
             on='client_id',
             how='inner'
         )
-        transactions_data = load_transactions_data(client_id=client_data.iloc[0]['client_id'])
+
+        transactions_data = load_transactions_data(config_path, client_id=client_data.iloc[0]['client_id'])
 
         results = calculate_scores(
             data=summaries_data,
@@ -641,7 +708,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
             transactions_data_df=transactions_data
         )
 
-        previous_results = get_prev_scoring_results(terminal=client_data.iloc[0]['terminal'])
+        previous_results = get_prev_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
         current_results = results[['terminal', 'final_3_day_limit']]
 
@@ -671,64 +738,85 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         results.rename(columns={'%repayment_by_dpd_7': 'percentage_repayment_by_dpd_7'}, inplace=True)
 
-        warehouse_hook.insert_rows(
-            table='interswitch_ug.scoring_results',
-            target_fields=[
-                'terminal', 'total_debit_amount', 'average_transaction_size', 'total_transactions', 'earliest_transaction_date',
-                'latest_transaction_date', 'no_of_services_offered', 'min_balance', 'max_balance', 'average_balance',
-                'min_debit_amt', 'max_debit_amt', 'unique_transaction_days', 'unique_transaction_months',
-                'expected_transaction_days_last_6_months', 'daily_trading_consistency_last_6_months',
-                'average_daily_transactions', 'average_daily_debit_amt', 'days_since_last_transaction', 'lowest_negative_balance',
-                'highest_negative_balance', 'total_commissions_amount',
-                'unique_number_of_commissions', 'unique_number_of_services_offered', 'number_of_months_received_commissions',
-                'scoring_refresh_date', 'model_version', 'minimum_limit', 'rounded_limit', 'is_qualified',
-                'earliest_negative_balance_date', 'latest_negative_balance_date', 'unique_negative_balance_dates',
-                'days_since_latest_negative_balance','latest_trading_month', 'evaluation_months', 'diff_last_txn_month',
-                'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
-                'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
-                'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
-                'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
-                'rules_summary_narration', 'communication_to_client', 'limit_reason_code'
-            ],
-            replace=False,
-            rows=tuple(results[[
-                'terminal', 'total_debit_amount', 'average_transaction_size', 'total_transactions', 'earliest_transaction_date',
-                'latest_transaction_date', 'no_of_services_offered', 'min_balance', 'max_balance', 'average_balance',
-                'min_debit_amt', 'max_debit_amt', 'unique_transaction_days', 'unique_transaction_months',
-                'expected_transaction_days_last_6_months', 'daily_trading_consistency_last_6_months',
-                'average_daily_transactions', 'average_daily_debit_amt', 'days_since_last_transaction', 'lowest_negative_balance',
-                'highest_negative_balance', 'total_commissions_amount',
-                'unique_number_of_commissions', 'unique_number_of_services_offered', 'number_of_months_received_commissions',
-                'scoring_refresh_date', 'model_version', 'minimum_limit', 'rounded_limit', 'is_qualified',
-                'earliest_negative_balance_date', 'latest_negative_balance_date', 'unique_negative_balance_dates',
-                'days_since_latest_negative_balance','latest_trading_month', 'evaluation_months', 'diff_last_txn_month',
-                'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
-                'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
-                'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
-                'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
-                'rules_summary_narration', 'communication_to_client', 'limit_reason_code'
-            ]].replace({np.NAN: None}).itertuples(index=False, name=None)),
-            commit_every=1
-        )
+        # warehouse_hook.insert_rows(
+        #     table='interswitch_ug.scoring_results',
+        #     target_fields=[
+        #         'terminal', 'total_debit_amount', 'average_transaction_size', 'total_transactions', 'earliest_transaction_date',
+        #         'latest_transaction_date', 'no_of_services_offered', 'min_balance', 'max_balance', 'average_balance',
+        #         'min_debit_amt', 'max_debit_amt', 'unique_transaction_days', 'unique_transaction_months',
+        #         'expected_transaction_days_last_6_months', 'daily_trading_consistency_last_6_months',
+        #         'average_daily_transactions', 'average_daily_debit_amt', 'days_since_last_transaction', 'lowest_negative_balance',
+        #         'highest_negative_balance', 'total_commissions_amount',
+        #         'unique_number_of_commissions', 'unique_number_of_services_offered', 'number_of_months_received_commissions',
+        #         'scoring_refresh_date', 'model_version', 'minimum_limit', 'rounded_limit', 'is_qualified',
+        #         'earliest_negative_balance_date', 'latest_negative_balance_date', 'unique_negative_balance_dates',
+        #         'days_since_latest_negative_balance','latest_trading_month', 'evaluation_months', 'diff_last_txn_month',
+        #         'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
+        #         'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
+        #         'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
+        #         'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
+        #         'rules_summary_narration', 'communication_to_client', 'limit_reason_code'
+        #     ],
+        #     replace=False,
+        #     rows=tuple(results[[
+        #         'terminal', 'total_debit_amount', 'average_transaction_size', 'total_transactions', 'earliest_transaction_date',
+        #         'latest_transaction_date', 'no_of_services_offered', 'min_balance', 'max_balance', 'average_balance',
+        #         'min_debit_amt', 'max_debit_amt', 'unique_transaction_days', 'unique_transaction_months',
+        #         'expected_transaction_days_last_6_months', 'daily_trading_consistency_last_6_months',
+        #         'average_daily_transactions', 'average_daily_debit_amt', 'days_since_last_transaction', 'lowest_negative_balance',
+        #         'highest_negative_balance', 'total_commissions_amount',
+        #         'unique_number_of_commissions', 'unique_number_of_services_offered', 'number_of_months_received_commissions',
+        #         'scoring_refresh_date', 'model_version', 'minimum_limit', 'rounded_limit', 'is_qualified',
+        #         'earliest_negative_balance_date', 'latest_negative_balance_date', 'unique_negative_balance_dates',
+        #         'days_since_latest_negative_balance','latest_trading_month', 'evaluation_months', 'diff_last_txn_month',
+        #         'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
+        #         'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
+        #         'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
+        #         'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
+        #         'rules_summary_narration', 'communication_to_client', 'limit_reason_code'
+        #     ]].replace({np.NAN: None}).itertuples(index=False, name=None)),
+        #     commit_every=1
+        # )
+
+        print('\nUpload scoring results ...')
+        display(results[target_fields])
+
+        # warehouse_hook.insert_rows(
+        #     table=table,
+        #     target_fields=target_fields,
+        #     replace=False,
+        #     rows=tuple(results[target_fields].replace({np.NAN: None}).itertuples(index=False, name=None)),
+        #     commit_every=1
+        # )
 
     return failure_reason
 
 
 def combine_files(config_path, agent_id):
+        # files = get_objects(
+        #     aws_access_key_id=Variable.get('AFSG_aws_access_key_id') if Variable.get('DEBUG') == 'FALSE' else None,
+        #     aws_secret_access_key=Variable.get('AFSG_aws_secret_access_key')if Variable.get('DEBUG') == 'FALSE' else None,
+        #     search=agent_id,
+        #     bucket_name=Variable.get('ISWUG_aws_s3_bucket_name')
+        # )
+
+        config = read_params(config_path)
+        bucket_name_raw = config['s3_config']['bucket_name_raw']
+        bucket_name_clean = config['s3_config']['bucket_name_clean']
+        bucket_key_prefix_clean = config['s3_config']['bucket_key_prefix_clean']
+
+        print('\nPull raw data ...')
         files = get_objects(
-            aws_access_key_id=Variable.get('AFSG_aws_access_key_id') if Variable.get('DEBUG') == 'FALSE' else None,
-            aws_secret_access_key=Variable.get('AFSG_aws_secret_access_key')if Variable.get('DEBUG') == 'FALSE' else None,
             search=agent_id,
-            bucket_name=Variable.get('ISWUG_aws_s3_bucket_name')
+            bucket_name=bucket_name_raw
         )
 
         if len(files) > 0:
             combined = pd.concat([x['data'] for x in files], ignore_index=True)
+
             combined['Balance'] = combined['Balance'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
-            combined['CreditAmount'] = combined['CreditAmount'].apply(
-                lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
-            combined['DebitAmount'] = combined['DebitAmount'].apply(
-                lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
+            combined['CreditAmount'] = combined['CreditAmount'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
+            combined['DebitAmount'] = combined['DebitAmount'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
 
             combined.rename(columns={
                 'Date': 'time_', 'Terminal': 'terminal', 'RequestRef': 'request_ref',
@@ -736,17 +824,24 @@ def combine_files(config_path, agent_id):
                 'DebitAmount': 'debit_amt', 'CreditAmount': 'credit_amt', 'Balance': 'balance', 'Status': 'status'
             }, inplace=True)
 
-
             combined.drop_duplicates(subset=combined.columns.tolist(), inplace=True)
 
             if combined.shape[0] > 0:
                 csv_buffer = StringIO()
                 combined.to_csv(path_or_buf=csv_buffer, index=False)
+
+                print('\nUpload clean data ...')
+                # save_file_to_s3(
+                #     s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
+                #     bucket_name='afsg-ds-prod-postgresql-dwh-archive',
+                #     file_bytes=csv_buffer.getvalue()
+                # )
                 save_file_to_s3(
-                    s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
-                    bucket_name='afsg-ds-prod-postgresql-dwh-archive',
+                    s3_file_key=bucket_key_prefix_clean.format(agent_id),
+                    bucket_name=bucket_name_clean,
                     file_bytes=csv_buffer.getvalue()
                 )
+
                 return combined
             else:
                 logging.warning(f'All files for {agent_id} are empty')

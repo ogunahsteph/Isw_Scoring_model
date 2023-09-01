@@ -10,6 +10,30 @@ db_credentials:
 
 agent_ids: ["3IS02066"]
 
+s3_config:
+  bucket_name_raw: afsg-dgt-prod-iswug-file-upload
+  bucket_name_clean: afsg-ds-prod-postgresql-dwh-archive
+  bucket_key_prefix_clean: "interswitch_uganda/scoring_data/{}_cleaned.csv" 
+
+upload_config:
+  table: 'interswitch_ug.scoring_results'
+  target_fields: [
+                  'terminal', 'total_debit_amount', 'average_transaction_size', 'total_transactions', 'earliest_transaction_date',
+                  'latest_transaction_date', 'no_of_services_offered', 'min_balance', 'max_balance', 'average_balance',
+                  'min_debit_amt', 'max_debit_amt', 'unique_transaction_days', 'unique_transaction_months',
+                  'expected_transaction_days_last_6_months', 'daily_trading_consistency_last_6_months',
+                  'average_daily_transactions', 'average_daily_debit_amt', 'days_since_last_transaction', 'lowest_negative_balance',
+                  'highest_negative_balance', 'total_commissions_amount',
+                  'unique_number_of_commissions', 'unique_number_of_services_offered', 'number_of_months_received_commissions',
+                  'scoring_refresh_date', 'model_version', 'minimum_limit', 'rounded_limit', 'is_qualified',
+                  'earliest_negative_balance_date', 'latest_negative_balance_date', 'unique_negative_balance_dates',
+                  'days_since_latest_negative_balance','latest_trading_month', 'evaluation_months', 'diff_last_txn_month',
+                  'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
+                  'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
+                  'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
+                  'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
+                  'rules_summary_narration', 'communication_to_client', 'limit_reason_code']
+
 loan_velocity_config:
   products: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds']
   partners: ['Safaricom Bloom 1.0', 'Safaricom Bloom 2.0', 'Solv', 'Tanda', 'Copia Device Financing', 'Jumia', 'Mezzanine', 'AC Group', 'SRDS (Bralirwa)']

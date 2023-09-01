@@ -1,0 +1,9 @@
+schema: '2.0'
+stages:
+  b_trigger_scoring:
+    cmd: python ./src/data/interswitch_uganda.py --config=params.yaml --agent_id=3IS02066
+    deps:
+    - path: ./src/data/interswitch_uganda.py
+      hash: md5
+      md5: 3fd002b2ac9120239d8308c7c15fbce0
+      size: 38388
