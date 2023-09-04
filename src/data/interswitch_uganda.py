@@ -610,7 +610,9 @@ def determine_if_to_graduate(df):
     current_limit = df['current_limit']
     previous_limit = df['previous_limit']
 
-    if months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
+    if current_limit == 0:
+        return current_limit
+    elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
         return current_limit
     elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit > 0:
         return previous_limit
