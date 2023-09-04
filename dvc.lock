@@ -5,5 +5,5 @@ stages:
     deps:
     - path: ./src/data/interswitch_uganda.py
       hash: md5
-      md5: e0b7e63cb13767e025e5f05c6421405e
-      size: 38492
+      md5: 976d87926ea365cd24f1e06c30bee349
+      size: 38663

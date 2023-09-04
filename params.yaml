@@ -8,7 +8,10 @@ db_credentials:
   mifos_env: ["MIFOS_HOST", "MIFOS_PORT", "MIFOS_DB_NAME", "MIFOS_USER", "MIFOS_PASSWORD"]
   path: .env
 
-terminal_ids: ["3IS16325", "3IS12910"]
+product_ids : [2, 3]
+
+terminal_ids: ["3IS16325", "3IS12910", "3IS34786",
+               "3IS00720", "3IS08111"]
 
 s3_config:
   bucket_name_raw: afsg-dgt-prod-iswug-file-upload
@@ -32,7 +35,8 @@ upload_config:
                   'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
                   'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
                   'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
-                  'rules_summary_narration', 'communication_to_client', 'limit_reason_code']
+                  'rules_summary_narration', 'communication_to_client', 'limit_reason_code',
+                  'current_limit']
 
 loan_velocity_config:
   products: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds']
