@@ -278,12 +278,10 @@ def load_loans_data(config_path, mifos_client_id: int, mifos_product_id: int) ->
             id, client_id, principal_disbursed_derived, disbursedon_date, expected_maturedon_date,
             total_expected_repayment_derived
         FROM `mifostenant-uganda`.m_loan 
-        -- where product_id = %(product_id)s and disbursedon_date is not null 
         where product_id IN %(product_id)s and disbursedon_date is not null 
         and loan_status_id in (300,600,700) and client_id = %(mifos_client_id)s
         """
     loans = query_dwh(sql_loans, dwh_credentials, prefix, project_dir, {'mifos_client_id': mifos_client_id, 'product_id': mifos_product_id})
-    # print(loans.shape)
 
     # return df
     return loans
@@ -667,7 +665,6 @@ def get_scoring_results(config_path, raw_data) -> str or None:
     target_fields = config['upload_config']['target_fields']
 
     failure_reason = None
-    product_id = 2
     product_id = tuple(product_ids)
 
     raw_data = process_dates(raw_data)
