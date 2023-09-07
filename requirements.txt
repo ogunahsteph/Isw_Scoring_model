@@ -27,3 +27,5 @@ mlflow
 s3fs≤0.4
 boto3
 cchardet
+dotenv
+pymsql

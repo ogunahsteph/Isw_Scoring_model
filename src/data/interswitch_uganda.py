@@ -463,12 +463,18 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     current_period = data["latest_transaction_date"].max()
     data['latest_trading_month'] = current_period
 
-    data['evaluation_months'] = (
-            (data['latest_trading_month'] - data['earliest_transaction_date']) / np.timedelta64(1, 'M') + 1)
+    print(data['latest_trading_month'])
+    print(data['earliest_transaction_date'])
+
+    # data['evaluation_months'] = (
+    #         (data['latest_trading_month'] - data['earliest_transaction_date']) / np.timedelta64(1, 'M') + 1)
+    data['evaluation_months'] = (data['latest_trading_month'].apply(lambda x: pd.to_datetime(x).month) - data['earliest_transaction_date'].apply(lambda x: pd.to_datetime(x).month) + 1)
     data['evaluation_months'] = data['evaluation_months'].apply(lambda x: np.ceil(x))
 
     # get time period between current period and last transaction
-    data["diff_last_txn_month"] = round(((current_period - data["latest_transaction_date"]) / np.timedelta64(1, 'M')),
+    # data["diff_last_txn_month"] = round(((current_period - data["latest_transaction_date"]) / np.timedelta64(1, 'M')),
+    #                                     0)
+    data["diff_last_txn_month"] = round((pd.to_datetime(current_period).month - data["latest_transaction_date"].apply(lambda x: pd.to_datetime(x).month)),
                                         0)
 
     # #### Combining all scores
@@ -515,8 +521,9 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     latest_loan['expected_maturedon_date'] = pd.to_datetime(latest_loan['expected_maturedon_date'])
 
     ## get difference in months between latest disbursement date and scoring day (today)
-    latest_loan['months_since_last_disbursement'] = (pd.to_datetime('today') - latest_loan[
-        'disbursedon_date']) / np.timedelta64(1, 'M')
+    # latest_loan['months_since_last_disbursement'] = (pd.to_datetime('today') - latest_loan[
+    #     'disbursedon_date']) / np.timedelta64(1, 'M')
+    latest_loan['months_since_last_disbursement'] = (pd.to_datetime('today').month - latest_loan['disbursedon_date'].apply(lambda x: pd.to_datetime(x).month))
 
     latest_loan = latest_loan[['terminal', 'months_since_last_disbursement']]
 

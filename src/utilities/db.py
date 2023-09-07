@@ -99,7 +99,7 @@ def db_connection(dwh_credentials, prefix, project_dir):
     return conn
 
 
-def query_dwh(sql, dwh_credentials, prefix, project_dir, *kwargs):
+def query_dwh(sql, dwh_credentials, prefix, project_dir, kwargs):
     conn = db_connection(dwh_credentials, prefix, project_dir)
     df = pd.read_sql(sql, conn, params=kwargs)
 
