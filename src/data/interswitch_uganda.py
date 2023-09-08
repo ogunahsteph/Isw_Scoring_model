@@ -611,18 +611,84 @@ def get_prev_scoring_results(config_path, terminal:str):
     return prev_scoring_results
 
 
+def get_prev_month_scoring_results(config_path, terminal:str):
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    dwh_credentials = config["db_credentials"]
+    snapshot_weeks = config["snapshot_weeks"]
+    prefix = "DWH"
+
+    print('\nPull previous month scoring results ...')
+    sql_prev_month_scoring_results = f"""
+        WITH sr_prev_m AS (
+                            SELECT
+                                sr_prev_m.terminal 
+                                ,MAX(sr_prev_m.model_version) AS previous_model_version
+                                ,MAX(sr_prev_m.id) AS id
+                            FROM interswitch_ug.scoring_results sr_prev_m 
+                            WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                                AND sr_prev_m.terminal = %(terminal)s
+                            GROUP BY 
+                                sr_prev_m.terminal
+                            )
+        SELECT 
+            sr_prev_m.terminal 
+            --,sr_prev_m.id
+            --,sr_prev_m.previous_model_version
+            ,sr.final_3_day_limit AS previous_month_limit
+        FROM sr_prev_m
+        LEFT JOIN interswitch_ug.scoring_results sr
+            ON sr_prev_m.terminal = sr.terminal
+            AND sr_prev_m.previous_model_version = sr.model_version
+            AND sr_prev_m.id = sr.id
+        WHERE sr.final_3_day_limit IS NOT NULL
+            AND sr_prev_m.terminal = %(terminal)s
+        /*ORDER BY 
+            model_version DESC*/
+        """
+    prev_month_scoring_results = query_dwh(sql_prev_month_scoring_results, dwh_credentials, prefix, project_dir, {'terminal': terminal})
+
+    if prev_month_scoring_results.empty:
+        prev_month_scoring_results = pd.DataFrame({
+            'terminal': [terminal],
+            'previous_month_limit': [0]
+        }, index=[0])
+
+    return prev_month_scoring_results
+
+
 def determine_if_to_graduate(df):
     months_since_last_disbursement = df['months_since_last_disbursement']
     loan_count = df['count_of_loans']
     current_limit = df['current_limit']
     previous_limit = df['previous_limit']
+    previous_month_limit = df['previous_month_limit']
+
+    # if current_limit == 0:
+    #     return current_limit
+    # elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
+    #     return current_limit
+    # elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit > 0:
+    #     return previous_limit
+    # else:
+    #     return current_limit
 
     if current_limit == 0:
         return current_limit
-    elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
+    elif loan_count == 0 and current_limit > 100000:
+        return 100000 # TODO limit cap
+    elif loan_count == 0 and current_limit <= 100000:
+        return current_limit # TODO limit cap
+    elif current_limit <= previous_limit:
         return current_limit
-    elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit > 0:
+    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit > 100000:
+        return 100000 # TODO limit cap
+    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit <= 100000:
+        return current_limit # TODO limit cap
+    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit > 0:
         return previous_limit
+    elif previous_month_limit > 0 and loan_count > 0 and previous_limit > 0 and current_limit >= previous_limit * 1.5:
+        return previous_limit * 1.5
     else:
         return current_limit
 
@@ -714,14 +780,16 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         previous_results = get_prev_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
         current_results = results[['terminal', 'final_3_day_limit']]
-
         current_results.rename(columns={'final_3_day_limit': 'current_limit'}, inplace=True)
 
         scoring_results = pd.merge(previous_results, current_results, on='terminal')
-
         scoring_results['previous_limit'].fillna(0, inplace=True)
 
         results = pd.merge(results, scoring_results, on='terminal')
+
+        previous_month_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
+
+        results = pd.merge(results, previous_month_results, on='terminal')
 
         results['final_3_day_limit'] = results.apply(
             lambda x: determine_if_to_graduate(x),

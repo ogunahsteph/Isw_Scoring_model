@@ -10,6 +10,8 @@ db_credentials:
 
 product_ids : [2, 3]
 
+snapshot_weeks: 8
+
 terminal_ids: ["3IS16325", "3IS12910", "3IS34786",
                "3IS00720", "3IS08111"]
 
@@ -35,25 +37,5 @@ upload_config:
                   'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
                   'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
                   'loan_band', 'repayment_band', 'limit_factor', 'final_3_day_limit', 'previous_limit', 'tenure',
-                  'rules_summary_narration', 'communication_to_client', 'limit_reason_code',
-                  'current_limit']
-
-loan_velocity_config:
-  products: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds']
-  partners: ['Safaricom Bloom 1.0', 'Safaricom Bloom 2.0', 'Solv', 'Tanda', 'Copia Device Financing', 'Jumia', 'Mezzanine', 'AC Group', 'SRDS (Bralirwa)']
-
-  products_in_scope: ['bloom1', 'bloom2', 'solv', 'tanda', 'copia', 'jumia', 'mezzanine', 'ac_group', 'srds'] #['solv']
-
-  query_refresh: True
-  query_start_date: '2017-11-30'
-  query_end_date: '2023-07-01'
-
-  test_accounts: [7750]
-
-  raw_data_path: 'data/raw/loan_velocity_raw_{}.parquet'
-  clean_data_path: 'data/interim/loan_velocity_clean_{}.parquet'
-  features_data_path: 'data/interim/loan_velocity_features_{}.parquet'
-  aggregate_data_path: 'data/interim/loan_velocity_aggregate_{}.parquet'
-  package_data_path: 'data/processed/loan_velocity_package_{}.parquet'
-  merge_data_path_parquet: 'data/processed/loan_velocity_merge_final.parquet'
-  merge_data_path_excel: 'data/processed/loan_velocity_merge_final.xlsx'
+                  'rules_summary_narration', 'communication_to_client', 'limit_reason_code', 'current_limit',
+                  'previous_month_limit']
