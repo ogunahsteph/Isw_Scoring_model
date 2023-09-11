@@ -561,16 +561,21 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
 
     final_df['repayment_band'] = final_df.apply(lambda x: calculate_repayments_bands(x), axis=1)
 
-    final_df['limit_factor'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
+    final_df['limit_factor_3_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
+    final_df['limit_factor_7_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
 
     # #### Limit Allocation
-    final_df['minimum_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
+    final_df['minimum_3_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
+    final_df['minimum_7_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
 
-    final_df['rounded_limit'] = final_df['minimum_limit'].apply(round_off)
+    final_df['rounded_3_day_limit'] = final_df['minimum_3_day_limit'].apply(round_off)
+    final_df['rounded_7_day_limit'] = final_df['minimum_7_day_limit'].apply(round_off)
 
-    final_df['final_3_day_limit'] = final_df['rounded_limit'].apply(amounts_cap)
+    final_df['final_3_day_limit'] = final_df['rounded_3_day_limit'].apply(amounts_cap)
+    final_df['final_7_day_limit'] = final_df['rounded_7_day_limit'].apply(amounts_cap)
 
     final_df['final_3_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
+    final_df['final_7_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
 
     final_df["scoring_refresh_date"] = get_scoring_refresh_date()
 
