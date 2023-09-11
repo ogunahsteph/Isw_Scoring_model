@@ -790,6 +790,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         previous_month_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
         results = pd.merge(results, previous_month_results, on='terminal')
+        # TODO fillna treatment
 
         results['final_3_day_limit'] = results.apply(
             lambda x: determine_if_to_graduate(x),
