@@ -463,9 +463,6 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     current_period = data["latest_transaction_date"].max()
     data['latest_trading_month'] = current_period
 
-    print(data['latest_trading_month'])
-    print(data['earliest_transaction_date'])
-
     # data['evaluation_months'] = (
     #         (data['latest_trading_month'] - data['earliest_transaction_date']) / np.timedelta64(1, 'M') + 1)
     data['evaluation_months'] = (data['latest_trading_month'].apply(lambda x: pd.to_datetime(x).month) - data['earliest_transaction_date'].apply(lambda x: pd.to_datetime(x).month) + 1)
