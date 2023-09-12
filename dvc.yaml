@@ -19,5 +19,14 @@ stages:
     always_changed: true
     deps:
     - ${project_dir}src/data/interswitch_uganda.py
+    outs:
+    - ${project_dir}${scoring_response_data_path_json}
+  
+  c_pass_generated_limits_to_engineering:
+    cmd: python ${project_dir}src/data/scoring_pipeline_interswitch_uganda.py --config=params.yaml # --agent_id=3IS02066
+    always_changed: true
+    deps:
+    - ${project_dir}src/data/scoring_pipeline_interswitch_uganda.py
+    - ${project_dir}${scoring_response_data_path_json}
     # outs:
     # - ${project_dir}data/interim/loan_velocity_clean_bloom1.parquet

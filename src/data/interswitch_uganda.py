@@ -933,18 +933,29 @@ def combine_files(config_path, agent_id):
 
 
 def trigger_scoring(config_path, agent_id):
+    config = read_params(config_path)
+    project_dir = config['project_dir']
+    scoring_response_data_path_json = config["scoring_response_data_path_json"]
+
     print('')
     logging.warning(f'Scoring {agent_id} ...')
 
+    extra = {'failure_reason': False}
     if agent_id is not None:
         raw_data = combine_files(config_path, agent_id)
         if raw_data is not None:
             failure_reason = get_scoring_results(config_path, raw_data=raw_data)
-            return True
+
+            extra['failure_reason'] = True
+            # return True
         else:
             raise pd.errors.EmptyDataError
+    
+    with open(project_dir + scoring_response_data_path_json, 'w', encoding='utf-8') as f:
+        json.dump(extra, f, ensure_ascii=False, indent=4)
 
-    return False
+    # return False
+    return extra
 
 
 if __name__ == "__main__":
@@ -954,7 +965,7 @@ if __name__ == "__main__":
     # args.add_argument("--agent_id", default="3IS02066")
     parsed_args = args.parse_args()
 
-    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
+    extra = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
     print('')
-    logging.warning(f'--------------- Scoring response --------------- : {response}')
+    logging.warning(f'--------------- Scoring failure reason ---------------\n {extra}')
     print('\n=============================================================================\n')

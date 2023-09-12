@@ -1,8 +1,10 @@
 # Import modules
 import os
+import json
 import base64
 import logging
 import argparse
+import requests
 import datetime as dt
 from urllib.parse import quote_plus
 
@@ -119,6 +121,47 @@ def post_to_dwh(df, dwh_credentials, upload_data_config, prefix, project_dir):
     response = df.to_sql(name=table, con=conn, schema=schema, if_exists=if_exists, index=index, chunksize=chunksize, method=method)
     
     return response
+
+
+def share_scoring_results(config_path, agent_id, callback_url, payload):  
+    # Load configurations
+    config = read_params(config_path)
+    project_dir = config["project_dir"]
+    api_credentials = config["db_credentials"]
+    prefix = config["isw_api_config"]['prefix']
+    share_limits = config["isw_api_config"]['share_limits']
+    headers_content_type = config["isw_api_config"]['headers_content_type']
+    scoring_script_name = config["airflow_api_config"]['scoring_script_name']
+    verify = config["isw_api_config"]['verify']
+    
+    # Decrypt credentials
+    isw_api_credentials_decrypted = decrypt_credentials(api_credentials, prefix, project_dir)
+    isw_api_username = isw_api_credentials_decrypted[f'{prefix}_USER']
+    isw_api_password = isw_api_credentials_decrypted[f'{prefix}_PASSWORD']
+
+    # Logs
+    print('')
+    logging.warning(f'Sharing {scoring_script_name.lower()} limits for {agent_id} ...')
+    logging.warning(f'URL: {callback_url}')
+    
+    # Share Limits
+    if share_limits == True:
+        response = requests.post(
+            url=callback_url,
+            headers={'Content-Type': f'{headers_content_type}'},
+            json=payload,
+            auth=requests.auth.HTTPBasicAuth(f'{isw_api_username}', f'{isw_api_password}'),
+            verify=verify
+            )
+
+        # Print response
+        print('')
+        logging.warning(f'--------------- Response ---------------\n status_code: {response.status_code}\n {response.text}')
+        
+        return response
+    else:
+        # Exit
+        logging.warning(f"{scoring_script_name} limits for {agent_id} NOT shared because share_limits flag = {share_limits}")
 
 
 # Run code
