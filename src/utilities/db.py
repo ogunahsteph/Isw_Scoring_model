@@ -1,6 +1,7 @@
 # Import modules
 import os
 import base64
+import logging
 import argparse
 import datetime as dt
 from urllib.parse import quote_plus
@@ -94,7 +95,7 @@ def db_connection(dwh_credentials, prefix, project_dir):
     conn = create_engine(conn_str)
 
     # Logs
-    print("Connection successful")
+    logging.warning(f'Connection successful')
     
     return conn
 
@@ -104,6 +105,20 @@ def query_dwh(sql, dwh_credentials, prefix, project_dir, kwargs=None):
     df = pd.read_sql(sql, conn, params=kwargs)
 
     return df
+
+
+def post_to_dwh(df, dwh_credentials, upload_data_config, prefix, project_dir):
+    schema = upload_data_config['schema']
+    table = upload_data_config['table']
+    if_exists = upload_data_config['if_exists']
+    index = upload_data_config['index']
+    chunksize = upload_data_config['chunksize']
+    method = upload_data_config['method']
+    
+    conn = db_connection(dwh_credentials, prefix, project_dir)
+    response = df.to_sql(name=table, con=conn, schema=schema, if_exists=if_exists, index=index, chunksize=chunksize, method=method)
+    
+    return response
 
 
 # Run code

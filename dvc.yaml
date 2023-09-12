@@ -15,7 +15,7 @@ stages:
   #   - ${project_dir}data/raw/loan_velocity_raw_srds.parquet
   
   b_trigger_scoring:
-    cmd: python ${project_dir}src/data/interswitch_uganda.py --config=params.yaml --agent_id=3IS02066
+    cmd: python ${project_dir}src/data/interswitch_uganda.py --config=params.yaml # --agent_id=3IS02066
     always_changed: true
     deps:
     - ${project_dir}src/data/interswitch_uganda.py

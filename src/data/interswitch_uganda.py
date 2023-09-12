@@ -238,7 +238,7 @@ def load_staging_db_data(config_path, terminal_id: str):
     dwh_credentials = config["db_credentials"]
     prefix = "ISW"
 
-    print('\nPull customer info ...')
+    logging.warning(f'Pull customer info ...')
     sql_cust_info = f"""
         SELECT TerminalId as terminal, MifosClientId as client_id FROM Customers where TerminalId = %(terminal_id)s
         """
@@ -269,9 +269,9 @@ def load_loans_data(config_path, mifos_client_id: int, mifos_product_id: int) ->
     dwh_credentials = config["db_credentials"]
     prefix = "MIFOS"
 
-    print('\nPull loans data ...')
-    print(f'Mifos client ID: {mifos_client_id}')
-    print(f'Mifos product ID: {mifos_product_id}')
+    logging.warning(f'Pull loans data ...')
+    logging.warning(f'Mifos client ID: {mifos_client_id}')
+    logging.warning(f'Mifos product ID: {mifos_product_id}')
 
     sql_loans = f"""
         SELECT 
@@ -305,7 +305,7 @@ def load_transactions_data(config_path, client_id):
     dwh_credentials = config["db_credentials"]
     prefix = "MIFOS"
 
-    print('\nPull transactions data ...')
+    logging.warning(f'Pull transactions data ...')
     sql_txn = f"""
         SELECT 
                 mlt.loan_id, mlt.transaction_date, mlt.amount 
@@ -562,20 +562,20 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     final_df['repayment_band'] = final_df.apply(lambda x: calculate_repayments_bands(x), axis=1)
 
     final_df['limit_factor_3_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
-    final_df['limit_factor_7_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
+    # final_df['limit_factor_7_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
 
     # #### Limit Allocation
-    final_df['minimum_3_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
-    final_df['minimum_7_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
+    final_df['minimum_3_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_3_day']
+    # final_df['minimum_7_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_7_day']
 
     final_df['rounded_3_day_limit'] = final_df['minimum_3_day_limit'].apply(round_off)
-    final_df['rounded_7_day_limit'] = final_df['minimum_7_day_limit'].apply(round_off)
+    # final_df['rounded_7_day_limit'] = final_df['minimum_7_day_limit'].apply(round_off)
 
     final_df['final_3_day_limit'] = final_df['rounded_3_day_limit'].apply(amounts_cap)
-    final_df['final_7_day_limit'] = final_df['rounded_7_day_limit'].apply(amounts_cap)
+    # final_df['final_7_day_limit'] = final_df['rounded_7_day_limit'].apply(amounts_cap)
 
     final_df['final_3_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
-    final_df['final_7_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
+    # final_df['final_7_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
 
     final_df["scoring_refresh_date"] = get_scoring_refresh_date()
 
@@ -597,7 +597,7 @@ def get_prev_scoring_results(config_path, terminal:str):
     dwh_credentials = config["db_credentials"]
     prefix = "DWH"
 
-    print('\nPull previous scoring results ...')
+    logging.warning(f'Pull previous scoring results ...')
     sql_prev_scoring_results = f"""
         SELECT terminal, final_3_day_limit as previous_limit FROM interswitch_ug.scoring_results_view where terminal = %(terminal)s
         """
@@ -620,7 +620,7 @@ def get_prev_month_scoring_results(config_path, terminal:str):
     snapshot_weeks = config["snapshot_weeks"]
     prefix = "DWH"
 
-    print('\nPull previous month scoring results ...')
+    logging.warning(f'Pull previous month scoring results ...')
     sql_prev_month_scoring_results = f"""
         WITH sr_prev_m AS (
                             SELECT
@@ -710,7 +710,7 @@ def rules_summary_narration(df):
     average_daily_debit_score_ = df['average_daily_debit_score']
     unique_number_of_commissions_score_ = df['unique_number_of_commissions_score']
     total_score = df['total_score']
-    limit_factor = df['limit_factor']
+    limit_factor = df['limit_factor_3_day']
     ## not found in table
     final_allocated_limit_3_day = df['final_3_day_limit']
     is_qualified = df['is_qualified']
@@ -737,9 +737,12 @@ def rules_summary_narration(df):
 
 def get_scoring_results(config_path, raw_data) -> str or None:
     config = read_params(config_path)
+    project_dir = config['project_dir']
     product_ids = config['product_ids']
-    table = config['upload_config']['table']
-    target_fields = config['upload_config']['target_fields']
+    dwh_credentials = config["db_credentials"]
+    upload_data_config = config["upload_data_config"]
+    prefix = upload_data_config['prefix']
+    target_fields = upload_data_config['target_fields']
 
     failure_reason = None
     product_id = tuple(product_ids)
@@ -781,7 +784,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         previous_results = get_prev_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
-        current_results = results[['terminal', 'final_3_day_limit']]
+        current_results = results[['terminal', 'final_3_day_limit']].copy()
         current_results.rename(columns={'final_3_day_limit': 'current_limit'}, inplace=True)
 
         scoring_results = pd.merge(previous_results, current_results, on='terminal')
@@ -811,6 +814,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         results = results.head(n=1)
 
         results.rename(columns={'%repayment_by_dpd_7': 'percentage_repayment_by_dpd_7'}, inplace=True)
+        results.replace({np.NAN: None}, inplace=True)
 
         # warehouse_hook.insert_rows(
         #     table='interswitch_ug.scoring_results',
@@ -852,8 +856,8 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         #     commit_every=1
         # )
 
-        print('\nUpload scoring results ...')
-        display(results[target_fields])
+        logging.warning(f'Upload scoring results ...')
+        # display(results[target_fields]) # TODO ['minimum_3_day_limit', 'rounded_3_day_limit', 'limit_factor_3_day']
 
         # warehouse_hook.insert_rows(
         #     table=table,
@@ -862,6 +866,11 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         #     rows=tuple(results[target_fields].replace({np.NAN: None}).itertuples(index=False, name=None)),
         #     commit_every=1
         # )
+
+        # response = post_to_dwh(results[target_fields], dwh_credentials, upload_data_config, prefix, project_dir)
+
+        # print('')
+        # logging.warning(f'--------------- Store generated limits response ---------------\n : {response}')
 
     return failure_reason
 
@@ -879,7 +888,7 @@ def combine_files(config_path, agent_id):
         bucket_name_clean = config['s3_config']['bucket_name_clean']
         bucket_key_prefix_clean = config['s3_config']['bucket_key_prefix_clean']
 
-        print('\nPull raw data ...')
+        logging.warning(f'Pull raw data ...')
         files = get_objects(
             search=agent_id,
             bucket_name=bucket_name_raw
@@ -904,7 +913,7 @@ def combine_files(config_path, agent_id):
                 csv_buffer = StringIO()
                 combined.to_csv(path_or_buf=csv_buffer, index=False)
 
-                print('\nUpload clean data ...')
+                logging.warning(f'Upload clean data ...')
                 # save_file_to_s3(
                 #     s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
                 #     bucket_name='afsg-ds-prod-postgresql-dwh-archive',
@@ -924,6 +933,9 @@ def combine_files(config_path, agent_id):
 
 
 def trigger_scoring(config_path, agent_id):
+    print('')
+    logging.warning(f'Scoring {agent_id} ...')
+
     if agent_id is not None:
         raw_data = combine_files(config_path, agent_id)
         if raw_data is not None:
@@ -939,9 +951,10 @@ if __name__ == "__main__":
     # Parameter arguments
     args = argparse.ArgumentParser()
     args.add_argument("--config", default="params.yaml")
-    args.add_argument("--agent_id", default="3IS02066")
+    # args.add_argument("--agent_id", default="3IS02066")
     parsed_args = args.parse_args()
 
-    print(f'\nScoring {parsed_args.agent_id} ...')
-    print(trigger_scoring(parsed_args.config, agent_id=parsed_args.agent_id))
-    print('=============================================================================\n')
+    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
+    print('')
+    logging.warning(f'--------------- Scoring response --------------- : {response}')
+    print('\n=============================================================================\n')
