@@ -187,6 +187,7 @@ def share_scoring_results(config_path, agent_id, callback_url, payload):
     
     # Decrypt credentials
     api_credentials_decrypted = decrypt_credentials(api_credentials, prefix, project_dir)
+    api_host = api_credentials_decrypted[f'{prefix}_HOST']
     api_username = api_credentials_decrypted[f'{prefix}_USER']
     api_password = api_credentials_decrypted[f'{prefix}_PASSWORD']
 
