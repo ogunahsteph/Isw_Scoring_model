@@ -55,7 +55,7 @@ upload_data_config:
                   'trading_consistency_score', 'age_on_network_score', 'recency_in_months_score',
                   'average_daily_debit_score', 'unique_number_of_commissions_score', 'total_score',
                   'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
-                  'loan_band', 'repayment_band', 'limit_factor_3_day', 'final_3_day_limit', 'previous_limit', 'tenure',
+                  'loan_band', 'repayment_band', 'limit_factor_3_day', 'final_3_day_limit', 'previous_limit', # 'tenure',
                   'rules_summary_narration', 'communication_to_client', 'limit_reason_code', 'current_limit',
                   'previous_snapshot_limit', 'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit']
   if_exists: 'fail' # 'append'

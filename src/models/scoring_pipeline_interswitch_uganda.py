@@ -189,6 +189,9 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
             where lower(terminal) = %(agent_id)s
             """
         rslt = query_dwh(sql_rslt, db_credentials, prefix, project_dir, {'agent_id': str(agent_id).strip().lower()})
+        
+        rslt['final_3_day_limit'].fillna(0, inplace=True)
+        rslt['final_7_day_limit'].fillna(0, inplace=True)
 
         tenures = {'3': 'final_3_day_limit', '7': 'final_7_day_limit'}
 
@@ -255,4 +258,4 @@ if __name__ == "__main__":
 
     # logging.warning(f'Sharing limits for {parsed_args.agent_id} ...')
     pass_generated_limits_to_engineering(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
-    print('=============================================================================\n')
+    print('\n=============================================================================\n')

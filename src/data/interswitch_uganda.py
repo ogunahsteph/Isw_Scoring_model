@@ -744,6 +744,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
     upload_data_config = config["upload_data_config"]
     prefix = upload_data_config['prefix']
     target_fields = upload_data_config['target_fields']
+    scoring_response_data_path_json = config["scoring_response_data_path_json"]
 
     failure_reason = None
     product_id = tuple(product_ids)
@@ -860,7 +861,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         logging.warning(f'Upload scoring results ...')
         # TODO ['limit_factor_3_day', 'minimum_3_day_limit', 'rounded_3_day_limit', 'previous_snapshot_limit', 'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit']
-        # display(results[target_fields])
+        display(results[target_fields])
 
         # warehouse_hook.insert_rows(
         #     table=table,
@@ -874,6 +875,13 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         # print('')
         # logging.warning(f'--------------- Store generated limits response ---------------\n : {response}')
+    
+    extra = {'failure_reason': failure_reason}
+    with open(project_dir + scoring_response_data_path_json, 'w', encoding='utf-8') as f:
+        json.dump(extra, f, ensure_ascii=False, indent=4)
+    
+    print('')
+    logging.warning(f'--------------- Scoring failure reason ---------------\n {extra}')
 
     return failure_reason
 
@@ -936,29 +944,18 @@ def combine_files(config_path, agent_id):
 
 
 def trigger_scoring(config_path, agent_id):
-    config = read_params(config_path)
-    project_dir = config['project_dir']
-    scoring_response_data_path_json = config["scoring_response_data_path_json"]
-
     print('')
     logging.warning(f'Scoring {agent_id} ...')
 
-    extra = {'failure_reason': False}
     if agent_id is not None:
         raw_data = combine_files(config_path, agent_id)
         if raw_data is not None:
             failure_reason = get_scoring_results(config_path, raw_data=raw_data)
-
-            extra['failure_reason'] = True
-            # return True
+            return True
         else:
             raise pd.errors.EmptyDataError
     
-    with open(project_dir + scoring_response_data_path_json, 'w', encoding='utf-8') as f:
-        json.dump(extra, f, ensure_ascii=False, indent=4)
-
-    # return False
-    return extra
+    return False
 
 
 if __name__ == "__main__":
@@ -968,7 +965,7 @@ if __name__ == "__main__":
     # args.add_argument("--agent_id", default="3IS02066")
     parsed_args = args.parse_args()
 
-    extra = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
+    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
     print('')
-    logging.warning(f'--------------- Scoring response ---------------\n {extra}')
+    logging.warning(f'--------------- Scoring response ---------------\n {response}')
     print('\n=============================================================================\n')
