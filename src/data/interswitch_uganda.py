@@ -696,9 +696,15 @@ def determine_if_to_graduate(df):
 
 
 def determine_if_qualified(df):
+    df['is_3_days_qualified'] = False
+    df['is_7_days_qualified'] = False
     df['is_qualified'] = False
 
-    df.loc[(df['final_3_day_limit'] > 0) & (df['total_score'] >= 600), 'is_qualified'] = True
+    df.loc[(df['final_3_day_limit'] > 0) & (df['total_score'] >= 600), 'is_3_days_qualified'] = True
+    df.loc[(df['final_7_day_limit'] > 0) & (df['total_score'] >= 600), 'is_7_days_qualified'] = True
+
+    df['is_qualified'] = np.where((df['is_3_days_qualified'] == True) | 
+                                  (df['is_7_days_qualified'] == True), True,  df['is_qualified'])
 
     return df
 
@@ -802,6 +808,8 @@ def get_scoring_results(config_path, raw_data) -> str or None:
             axis=1
         )
 
+        results['final_7_day_limit'] = results['final_3_day_limit'] 
+
         results = determine_if_qualified(results)
 
         results['rules_summary_narration'] = results.apply(lambda x: rules_summary_narration(x), axis=1)
@@ -809,7 +817,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         results[['rules_summary_narration', "communication_to_client", "limit_reason_code"]] = results[
             "rules_summary_narration"].astype("str").str.split(":", expand=True)
 
-        results['tenure'] = 3
+        # results['tenure'] = 3
 
         results = results.head(n=1)
 
@@ -857,7 +865,8 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         # )
 
         logging.warning(f'Upload scoring results ...')
-        # display(results[target_fields]) # TODO ['minimum_3_day_limit', 'rounded_3_day_limit', 'limit_factor_3_day']
+        # TODO ['minimum_3_day_limit', 'rounded_3_day_limit', 'limit_factor_3_day', 'final_7_day_limit', 'is_3_days_qualified', 'is_7_days_qualified']
+        # display(results[target_fields])
 
         # warehouse_hook.insert_rows(
         #     table=table,

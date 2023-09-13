@@ -57,7 +57,7 @@ upload_data_config:
                   'count_of_loans', 'months_since_last_disbursement', 'percentage_repayment_by_dpd_7',
                   'loan_band', 'repayment_band', 'limit_factor_3_day', 'final_3_day_limit', 'previous_limit', 'tenure',
                   'rules_summary_narration', 'communication_to_client', 'limit_reason_code', 'current_limit',
-                  'previous_month_limit']
+                  'previous_month_limit', 'final_7_day_limit', 'is_3_days_qualified', 'is_7_days_qualified']
   if_exists: 'fail' # 'append'
 
 digital_api_config:
