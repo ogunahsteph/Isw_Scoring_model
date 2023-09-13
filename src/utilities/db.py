@@ -14,6 +14,7 @@ import pymysql
 import psycopg2
 import numpy as np 
 import pandas as pd
+from tzlocal import get_localzone
 from IPython.display import display
 from sqlalchemy import create_engine
 
@@ -121,6 +122,56 @@ def post_to_dwh(df, dwh_credentials, upload_data_config, prefix, project_dir):
     response = df.to_sql(name=table, con=conn, schema=schema, if_exists=if_exists, index=index, chunksize=chunksize, method=method)
     
     return response
+
+
+def trigger_scoring_script(config_path, agent_id):  
+    # Load configurations
+    config = read_params(config_path)
+    project_dir = config["project_dir"]
+    airflow_credentials = config["db_credentials"]
+    prefix = config["airflow_api_config"]['prefix']
+    trigger_api = config["airflow_api_config"]['trigger_api']
+    airflow_dag_url = config["airflow_api_config"]['airflow_dag_url']
+    headers_content_type = config["airflow_api_config"]['headers_content_type']
+    headers_accept = config["airflow_api_config"]['headers_accept']
+    conf_is_initial_run = config["airflow_api_config"]['conf_is_initial_run']
+    verify = config["airflow_api_config"]['verify']
+    callback_url = config["airflow_api_config"]['callback_url']
+    scoring_script_name = config["airflow_api_config"]['scoring_script_name']
+    
+    # Parameters
+    local_tz = get_localzone()
+    execution_date = str(dt.datetime.now().replace(tzinfo=local_tz))
+    
+    # Decrypt credentials
+    airflow_credentials_decrypted = decrypt_credentials(airflow_credentials, prefix, project_dir)
+    host = airflow_credentials_decrypted[f'{prefix}_HOST']
+    user = airflow_credentials_decrypted[f'{prefix}_USER']
+    password = airflow_credentials_decrypted[f'{prefix}_PASSWORD']
+
+    # Logs
+    print('')
+    logging.warning(f'Triggering airflow {scoring_script_name.lower()} scoring script for {agent_id} ...')
+    logging.warning(f'URL: {host}{airflow_dag_url}')
+    
+    # Trigger Airflow DAG
+    if trigger_api == True:
+        response = requests.post(url=f'{host}{airflow_dag_url}',
+                                headers={'Content-type': f'{headers_content_type}',
+                                         'Accept': f'{headers_accept}'},
+                                json={"execution_date": execution_date,
+                                      "conf": {'agent_id': agent_id}},
+                                auth=requests.auth.HTTPBasicAuth(f"{user}", f'{password}'),
+                                verify=verify)
+        
+        # Print response
+        print('')
+        logging.warning(f'--------------- Response ---------------\n status_code: {response.status_code}\n {response.text}')
+        
+        return response
+    else:
+        # Exit
+        logging.warning(f"{scoring_script_name} scoring pipeline is NOT triggered because trigger_api flag = {trigger_api}")
 
 
 def share_scoring_results(config_path, agent_id, callback_url, payload):  
