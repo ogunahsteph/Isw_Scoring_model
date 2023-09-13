@@ -970,5 +970,5 @@ if __name__ == "__main__":
 
     extra = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
     print('')
-    logging.warning(f'--------------- Scoring failure reason ---------------\n {extra}')
+    logging.warning(f'--------------- Scoring response ---------------\n {extra}')
     print('\n=============================================================================\n')

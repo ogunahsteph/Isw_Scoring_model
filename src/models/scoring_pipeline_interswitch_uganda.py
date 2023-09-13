@@ -139,7 +139,9 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
     # failure_reason = context['ti'].xcom_pull(task_ids='trigger_scoring', key='failure_reason')
 
     with open(project_dir + scoring_response_data_path_json) as f:
-        failure_reason = json.load(f)
+        scoring_response = json.load(f)
+    
+    failure_reason = scoring_response['failure_reason']
 
     if failure_reason:
         payload = {
