@@ -13,13 +13,13 @@ stages:
       md5: b221fb41f70a9d77030735a653583c38
       size: 32
   c_pass_generated_limits_to_engineering:
-    cmd: python ./src/data/scoring_pipeline_interswitch_uganda.py --config=params.yaml
+    cmd: python ./src/models/scoring_pipeline_interswitch_uganda.py --config=params.yaml
     deps:
     - path: ./data/processed/scoring_response.json
       hash: md5
       md5: b221fb41f70a9d77030735a653583c38
       size: 32
-    - path: ./src/data/scoring_pipeline_interswitch_uganda.py
+    - path: ./src/models/scoring_pipeline_interswitch_uganda.py
       hash: md5
       md5: 0a57a2ea0ce70ed8b325596aa58cb4cd
       size: 10123
