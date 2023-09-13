@@ -153,14 +153,18 @@ def trigger_scoring_script(config_path, agent_id):
     print('')
     logging.warning(f'Triggering airflow {scoring_script_name.lower()} scoring script for {agent_id} ...')
     logging.warning(f'URL: {host}{airflow_dag_url}')
+
+    conf = {'agent_id': agent_id}
+
+    payload = {"execution_date": execution_date,
+               "conf": conf}
     
     # Trigger Airflow DAG
     if trigger_api == True:
         response = requests.post(url=f'{host}{airflow_dag_url}',
                                 headers={'Content-type': f'{headers_content_type}',
                                          'Accept': f'{headers_accept}'},
-                                json={"execution_date": execution_date,
-                                      "conf": {'agent_id': agent_id}},
+                                json=payload,
                                 auth=requests.auth.HTTPBasicAuth(f"{user}", f'{password}'),
                                 verify=verify)
         
