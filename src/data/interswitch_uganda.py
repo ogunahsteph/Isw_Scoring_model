@@ -680,14 +680,12 @@ def determine_if_to_graduate(df):
         return current_limit
     elif current_limit <= previous_limit:
         return current_limit
-    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit == 0 and current_limit > 100000:
-        return 100000 # TODO limit cap
-    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit == 0 and current_limit <= 100000:
-        return current_limit # TODO limit cap
-    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit > 0:
+    elif np.isnan(previous_snapshot_limit) and previous_limit == 0:
+        return current_limit
+    elif np.isnan(previous_snapshot_limit) and previous_limit > 0:
         return previous_limit
-    elif previous_snapshot_limit > 0 and loan_count > 0 and previous_limit > 0 and current_limit >= previous_limit * 1.5:
-        return previous_limit * 1.5
+    elif current_limit >= previous_snapshot_limit:
+        return current_limit
     else:
         return current_limit
 
@@ -817,7 +815,6 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         # results['tenure'] = 3
 
         results = results.head(n=1)
-
         results.rename(columns={'%repayment_by_dpd_7': 'percentage_repayment_by_dpd_7'}, inplace=True)
         results.replace({np.NAN: None}, inplace=True)
 

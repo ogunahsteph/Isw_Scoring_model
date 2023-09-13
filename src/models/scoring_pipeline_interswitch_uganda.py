@@ -145,10 +145,12 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
         payload = {
                     "clientId": "AsanteDS538",
                     "agentId": agent_id,
-                    "limit": int(0),
+                    "3_day_limit": int(0),
+                    "7_day_limit": int(0),
                     "createdDate": str(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')),
-                    'tenure': int(-1),
-                    'extra': {'limit_reason': failure_reason}
+                    # 'tenure': int(-1),
+                    'extra': {'3_day_limit_reason': failure_reason, 
+                              '7_day_limit_reason': failure_reason}
                 }
     else:
         # rslt = warehouse_hook.get_pandas_df(
@@ -170,18 +172,21 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
 
         logging.warning(f'Pull scoring results ...')
         sql_rslt = f"""
-            select id, terminal as agent_id, 
-            case 
-                when not is_qualified then 0 else final_3_day_limit
-            end as final_3_day_limit,
-            case 
-                when not is_qualified then 0 else final_7_day_limit
-            end as final_7_day_limit,  
-            tenure, is_qualified from interswitch_ug.scoring_results_view
+            select 
+                id
+                ,terminal as agent_id 
+                ,case 
+                    when not is_qualified then 0 else final_3_day_limit
+                end as final_3_day_limit,
+                case 
+                    when not is_qualified then 0 else final_7_day_limit
+                end as final_7_day_limit
+                --,tenure
+                ,is_qualified 
+            from interswitch_ug.scoring_results_view
             where lower(terminal) = %(agent_id)s
             """
         rslt = query_dwh(sql_rslt, db_credentials, prefix, project_dir, {'agent_id': str(agent_id).strip().lower()})
-
 
         tenures = {'3': 'final_3_day_limit', '7': 'final_7_day_limit'}
 
@@ -189,10 +194,13 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
         payload = {
                     "clientId": "AsanteDS538",
                     "agentId": rslt.iloc[0]['agent_id'],
-                    "limit": int(math.floor(rslt.iloc[0][tenures[str(rslt.iloc[0]['tenure'])]])),
+                    # "limit": int(math.floor(rslt.iloc[0][tenures[str(rslt.iloc[0]['tenure'])]])),
+                    "3_day_limit": int(math.floor(rslt.iloc[0][tenures[str(3)]])),
+                    "7_day_limit": int(math.floor(rslt.iloc[0][tenures[str(7)]])),
                     "createdDate": str(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')),
-                    'tenure': int(rslt.iloc[0]['tenure']),
-                    'extra': {'limit_reason': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules'}
+                    # 'tenure': int(rslt.iloc[0]['tenure']),
+                    'extra': {'3_day_limit_reason': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules', 
+                              '7_day_limit_reason': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules'}
                 }
 
     res = share_scoring_results(config_path, str(agent_id).strip().lower(), callback_url, payload)
