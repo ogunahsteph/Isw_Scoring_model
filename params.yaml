@@ -60,7 +60,7 @@ upload_data_config:
                   'previous_month_limit']
   if_exists: 'fail' # 'append'
 
-isw_api_config:
+digital_api_config:
   headers_content_type: 'application/json'
   prefix: 'ISW_API'
   verify: False

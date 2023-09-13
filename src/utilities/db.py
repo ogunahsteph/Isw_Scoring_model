@@ -179,16 +179,16 @@ def share_scoring_results(config_path, agent_id, callback_url, payload):
     config = read_params(config_path)
     project_dir = config["project_dir"]
     api_credentials = config["db_credentials"]
-    prefix = config["isw_api_config"]['prefix']
-    share_limits = config["isw_api_config"]['share_limits']
-    headers_content_type = config["isw_api_config"]['headers_content_type']
+    prefix = config["digital_api_config"]['prefix']
+    share_limits = config["digital_api_config"]['share_limits']
+    headers_content_type = config["digital_api_config"]['headers_content_type']
     scoring_script_name = config["airflow_api_config"]['scoring_script_name']
-    verify = config["isw_api_config"]['verify']
+    verify = config["digital_api_config"]['verify']
     
     # Decrypt credentials
-    isw_api_credentials_decrypted = decrypt_credentials(api_credentials, prefix, project_dir)
-    isw_api_username = isw_api_credentials_decrypted[f'{prefix}_USER']
-    isw_api_password = isw_api_credentials_decrypted[f'{prefix}_PASSWORD']
+    api_credentials_decrypted = decrypt_credentials(api_credentials, prefix, project_dir)
+    api_username = api_credentials_decrypted[f'{prefix}_USER']
+    api_password = api_credentials_decrypted[f'{prefix}_PASSWORD']
 
     # Logs
     print('')
@@ -201,7 +201,7 @@ def share_scoring_results(config_path, agent_id, callback_url, payload):
             url=callback_url,
             headers={'Content-Type': f'{headers_content_type}'},
             json=payload,
-            auth=requests.auth.HTTPBasicAuth(f'{isw_api_username}', f'{isw_api_password}'),
+            auth=requests.auth.HTTPBasicAuth(f'{api_username}', f'{api_password}'),
             verify=verify
             )
 
