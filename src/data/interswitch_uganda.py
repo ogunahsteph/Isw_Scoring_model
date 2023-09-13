@@ -625,10 +625,11 @@ def get_prev_month_scoring_results(config_path, terminal:str):
         WITH sr_prev_m AS (
                             SELECT
                                 sr_prev_m.terminal 
-                                ,MAX(sr_prev_m.model_version) AS previous_model_version
+                                ,MAX(sr_prev_m.model_version) AS previous_snapshot_model_version
                                 ,MAX(sr_prev_m.id) AS id
                             FROM interswitch_ug.scoring_results sr_prev_m 
-                            WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                            --WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                            WHERE SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE < NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL
                                 AND sr_prev_m.terminal = %(terminal)s
                             GROUP BY 
                                 sr_prev_m.terminal
@@ -636,24 +637,24 @@ def get_prev_month_scoring_results(config_path, terminal:str):
         SELECT 
             sr_prev_m.terminal 
             --,sr_prev_m.id
-            --,sr_prev_m.previous_model_version
-            ,sr.final_3_day_limit AS previous_month_limit
+            --,sr_prev_m.previous_snapshot_model_version
+            ,sr.final_3_day_limit AS previous_snapshot_limit
         FROM sr_prev_m
         LEFT JOIN interswitch_ug.scoring_results sr
             ON sr_prev_m.terminal = sr.terminal
-            AND sr_prev_m.previous_model_version = sr.model_version
+            AND sr_prev_m.previous_snapshot_model_version = sr.model_version
             AND sr_prev_m.id = sr.id
         WHERE sr.final_3_day_limit IS NOT NULL
             AND sr_prev_m.terminal = %(terminal)s
         /*ORDER BY 
-            model_version DESC*/
+            sr.model_version DESC*/
         """
     prev_month_scoring_results = query_dwh(sql_prev_month_scoring_results, dwh_credentials, prefix, project_dir, {'terminal': terminal})
 
     if prev_month_scoring_results.empty:
         prev_month_scoring_results = pd.DataFrame({
             'terminal': [terminal],
-            'previous_month_limit': [0]
+            'previous_snapshot_limit': [0]
         }, index=[0])
 
     return prev_month_scoring_results
@@ -664,7 +665,7 @@ def determine_if_to_graduate(df):
     loan_count = df['count_of_loans']
     current_limit = df['current_limit']
     previous_limit = df['previous_limit']
-    previous_month_limit = df['previous_month_limit']
+    previous_snapshot_limit = df['previous_snapshot_limit']
 
     # if current_limit == 0:
     #     return current_limit
@@ -677,19 +678,15 @@ def determine_if_to_graduate(df):
 
     if current_limit == 0:
         return current_limit
-    elif loan_count == 0 and current_limit > 100000:
-        return 100000 # TODO limit cap
-    elif loan_count == 0 and current_limit <= 100000:
-        return current_limit # TODO limit cap
     elif current_limit <= previous_limit:
         return current_limit
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit > 100000:
+    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit == 0 and current_limit > 100000:
         return 100000 # TODO limit cap
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit <= 100000:
+    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit == 0 and current_limit <= 100000:
         return current_limit # TODO limit cap
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit > 0:
+    elif np.isnan(previous_snapshot_limit) and loan_count > 0 and previous_limit > 0:
         return previous_limit
-    elif previous_month_limit > 0 and loan_count > 0 and previous_limit > 0 and current_limit >= previous_limit * 1.5:
+    elif previous_snapshot_limit > 0 and loan_count > 0 and previous_limit > 0 and current_limit >= previous_limit * 1.5:
         return previous_limit * 1.5
     else:
         return current_limit
@@ -798,9 +795,9 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         results = pd.merge(results, scoring_results, on='terminal')
 
-        previous_month_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
+        previous_snapshot_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
-        results = pd.merge(results, previous_month_results, on='terminal')
+        results = pd.merge(results, previous_snapshot_results, on='terminal')
         # TODO fillna treatment
 
         results['final_3_day_limit'] = results.apply(
@@ -865,7 +862,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         # )
 
         logging.warning(f'Upload scoring results ...')
-        # TODO ['minimum_3_day_limit', 'rounded_3_day_limit', 'limit_factor_3_day', 'final_7_day_limit', 'is_3_days_qualified', 'is_7_days_qualified']
+        # TODO ['limit_factor_3_day', 'minimum_3_day_limit', 'rounded_3_day_limit', 'previous_snapshot_limit', 'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit']
         # display(results[target_fields])
 
         # warehouse_hook.insert_rows(
