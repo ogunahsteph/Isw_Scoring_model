@@ -257,5 +257,5 @@ if __name__ == "__main__":
     parsed_args = args.parse_args()
 
     # logging.warning(f'Sharing limits for {parsed_args.agent_id} ...')
-    pass_generated_limits_to_engineering(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
+    pass_generated_limits_to_engineering(parsed_args.config, agent_id=read_params(parsed_args.config)['test_config']['agent_id'])
     print('\n=============================================================================\n')

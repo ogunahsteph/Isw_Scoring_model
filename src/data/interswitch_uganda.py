@@ -1082,7 +1082,7 @@ if __name__ == "__main__":
     # args.add_argument("--agent_id", default="3IS02066")
     parsed_args = args.parse_args()
 
-    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['agent_id'])
+    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['test_config']['agent_id'])
     print('')
     logging.warning(f'--------------- Scoring response ---------------\n {response}')
     print('\n=============================================================================\n')

@@ -131,7 +131,8 @@ def trigger_scoring_script(config_path, agent_id):
     airflow_credentials = config["db_credentials"]
     prefix = config["airflow_api_config"]['prefix']
     trigger_api = config["airflow_api_config"]['trigger_api']
-    airflow_dag_url = config["airflow_api_config"]['airflow_dag_url']
+    airflow_dag_path = config["airflow_api_config"]['airflow_dag_path']
+    airflow_pipeline_name = config["airflow_api_config"]['airflow_pipeline_name']
     headers_content_type = config["airflow_api_config"]['headers_content_type']
     headers_accept = config["airflow_api_config"]['headers_accept']
     conf_is_initial_run = config["airflow_api_config"]['conf_is_initial_run']
@@ -142,6 +143,7 @@ def trigger_scoring_script(config_path, agent_id):
     # Parameters
     local_tz = get_localzone()
     execution_date = str(dt.datetime.now().replace(tzinfo=local_tz))
+    airflow_dag_url = airflow_dag_path.format(airflow_pipeline_name)
     
     # Decrypt credentials
     airflow_credentials_decrypted = decrypt_credentials(airflow_credentials, prefix, project_dir)

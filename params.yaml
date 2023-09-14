@@ -1,39 +1,22 @@
 project_dir: ./
 
-prefix: "DWH"
-
-scoring_response_data_path_json: 'data/processed/scoring_response.json'
-
 db_credentials:
   dwh_env: ["DWH_HOST", "DWH_PORT", "DWH_DB_NAME", "DWH_USER", "DWH_PASSWORD"]
   isw_env: ["ISW_HOST", "ISW_PORT", "ISW_DB_NAME", "ISW_USER", "ISW_PASSWORD"]
   mifos_env: ["MIFOS_HOST", "MIFOS_PORT", "MIFOS_DB_NAME", "MIFOS_USER", "MIFOS_PASSWORD"]
+  airflow_env: ["AIRFLOW_HOST", "AIRFLOW_USER", "AIRFLOW_PASSWORD"]
   isw_api_env: ["ISW_API_HOST", "ISW_API_USER", "ISW_API_PASSWORD"]
   path: .env
 
 product_ids : [2, 3]
-
 snapshot_weeks: 8
 
-agent_id: "3IS16325"
-terminal_ids: ["3IS16325", "3IS12910", "3IS34786",
-               "3IS00720", "3IS08111"]
+scoring_response_data_path_json: 'data/processed/scoring_response.json'
 
 s3_config:
   bucket_name_raw: afsg-dgt-prod-iswug-file-upload
   bucket_name_clean: afsg-ds-prod-postgresql-dwh-archive
   bucket_key_prefix_clean: "interswitch_uganda/scoring_data/{}_cleaned.csv" 
-
-airflow_api_config:
-  # airflow_dag_url: 'data-pipelines/api/v1/dags/scoring_pipeline_remita/dagRuns'
-  # headers_content_type: 'application/json'
-  # headers_accept: 'application/json'
-  # conf_is_initial_run: "true"
-  # verify: False
-  callback_url: "https://callback/url/endpoint" # 'https://iswug.asantefsg.com/iswug/api/v1/client/creditlimit'
-  # prefix: 'AIRFLOW'
-  scoring_script_name: 'ISW'
-  # trigger_api: False
 
 upload_data_config:
   prefix: "DWH"
@@ -62,8 +45,25 @@ upload_data_config:
                   'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit']
   if_exists: 'fail' # 'append'
 
-digital_api_config:
+airflow_api_config:
+  prefix: 'AIRFLOW'
+  scoring_script_name: 'ISW'
+  airflow_dag_path: 'data-pipelines/api/v1/dags/{}/dagRuns'
+  airflow_pipeline_name: 'scoring_pipeline_interswitch_uganda'
   headers_content_type: 'application/json'
+  headers_accept: 'application/json'
+  conf_is_initial_run: "true"
+  verify: False
+  callback_url: "https://www.callback.com/url/endpoint"
+  trigger_api: False
+
+digital_api_config:
   prefix: 'ISW_API'
+  headers_content_type: 'application/json'
   verify: False
   share_limits: False
+
+test_config:
+  agent_id: "3IS16325"
+  terminal_ids: ["3IS16325", "3IS12910", "3IS34786",
+                "3IS00720", "3IS08111"]
