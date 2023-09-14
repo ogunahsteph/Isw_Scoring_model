@@ -733,6 +733,37 @@ def get_prev_month_scoring_results(config_path, terminal:str):
     return prev_month_scoring_results
 
 
+def determine_if_to_graduate_based_prev(df):
+    current_limit = df['current_limit']
+    previous_limit = df['previous_limit']
+
+    if current_limit == 0:
+        return current_limit
+    elif previous_limit == 0:
+        return current_limit
+    elif current_limit >= (previous_limit * 1.5):
+        return previous_limit * 1.5
+    elif current_limit >= (previous_limit * 0.85) and current_limit <= (previous_limit * 1.15):
+        return previous_limit
+    else:
+        return current_limit
+
+
+def determine_if_to_graduate_based_prev_2m(df):
+    limit_after_stabilisation = df['limit_after_stabilisation']
+    previous_limit = df['previous_limit']
+    previous_2m_limit = df['previous_2m_limit']
+
+    if limit_after_stabilisation == 0:
+        return limit_after_stabilisation
+    elif previous_limit > previous_2m_limit:
+        return previous_limit
+    elif (previous_limit < previous_2m_limit) & (limit_after_stabilisation > previous_limit):
+        return previous_limit
+    else:
+        return limit_after_stabilisation
+
+
 def determine_if_to_graduate(df):
     months_since_last_disbursement = df['months_since_last_disbursement']
     loan_count = df['count_of_loans']
@@ -880,13 +911,14 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         previous_snapshot_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
          
         results = pd.merge(results, previous_snapshot_results, on='terminal')
+        results['previous_m_limit'].fillna(0, inplace=True)
+        results['previous_2m_limit'].fillna(0, inplace=True)
         # TODO fillna treatment
 
-        results['final_3_day_limit'] = results.apply(
-            lambda x: determine_if_to_graduate(x),
-            axis=1
-        )
-
+        # Limit stabilisation
+        # results['final_3_day_limit'] = results.apply(lambda x: determine_if_to_graduate(x), axis=1)
+        results['limit_after_stabilisation'] = results.apply(lambda x: determine_if_to_graduate_based_prev(x), axis=1)
+        results['final_3_day_limit'] = results.apply(lambda x: determine_if_to_graduate_based_prev_2m(x), axis=1)
         results['final_7_day_limit'] = results['final_3_day_limit'] 
 
         results = determine_if_qualified(results)
@@ -945,7 +977,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         logging.warning(f'Upload scoring results ...')
         # TODO 
         # ['limit_factor_3_day', 'minimum_3_day_limit', 'rounded_3_day_limit', 'previous_snapshot_limit', 'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit',
-        # 'previous_m_limit', 'previous_2m_limit',]
+        # 'previous_m_limit', 'previous_2m_limit', 'limit_after_stabilisation']
         display(results[target_fields])
 
         # warehouse_hook.insert_rows(

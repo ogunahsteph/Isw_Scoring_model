@@ -5,21 +5,21 @@ stages:
     deps:
     - path: ./src/data/interswitch_uganda.py
       hash: md5
-      md5: c0f2a75e210f0330a5a904d4403b36b3
-      size: 48893
+      md5: 0a85737bec018c3c82c3f18885605c54
+      size: 49248
     outs:
     - path: ./data/processed/scoring_response.json
       hash: md5
-      md5: 7f69b0ba49b2edaa828ccbb38e1a00dd
-      size: 32
+      md5: 0ab1a8bf55d967a936146bbc60fa7c1e
+      size: 30
   c_pass_generated_limits_to_engineering:
     cmd: python ./src/models/scoring_pipeline_interswitch_uganda.py --config=params.yaml
     deps:
     - path: ./data/processed/scoring_response.json
       hash: md5
-      md5: 7f69b0ba49b2edaa828ccbb38e1a00dd
-      size: 32
+      md5: 0ab1a8bf55d967a936146bbc60fa7c1e
+      size: 30
     - path: ./src/models/scoring_pipeline_interswitch_uganda.py
       hash: md5
-      md5: b5b8e7d33c595dc12afb0a7469ef9cc8
-      size: 10856
+      md5: 1187fea19a08187e865352adeedbbbce
+      size: 10596

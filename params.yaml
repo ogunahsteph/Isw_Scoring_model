@@ -58,7 +58,7 @@ upload_data_config:
                   'loan_band', 'repayment_band', 'limit_factor_3_day', 'final_3_day_limit', 'previous_limit', # 'tenure',
                   'rules_summary_narration', 'communication_to_client', 'limit_reason_code', 'current_limit',
                   # 'previous_snapshot_limit', 
-                  'previous_m_limit', 'previous_2m_limit',
+                  'previous_m_limit', 'previous_2m_limit', 'limit_after_stabilisation',
                   'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit']
   if_exists: 'fail' # 'append'
 
