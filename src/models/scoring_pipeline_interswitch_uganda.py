@@ -147,12 +147,12 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
         payload = {
                     "clientId": "AsanteDS538",
                     "agentId": agent_id,
-                    "3_day_limit": int(0),
-                    "7_day_limit": int(0),
+                    "final_3_day_limit": int(0),
+                    "final_7_day_limit": int(0),
                     "createdDate": str(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')),
                     # 'tenure': int(-1),
-                    'extra': {'3_day_limit_reason': failure_reason, 
-                              '7_day_limit_reason': failure_reason}
+                    'extra': {'limit_reason_3_day': failure_reason, 
+                              'limit_reason_7_day': failure_reason}
                 }
     else:
         # rslt = warehouse_hook.get_pandas_df(
@@ -200,12 +200,12 @@ def pass_generated_limits_to_engineering(config_path, agent_id):
                     "clientId": "AsanteDS538",
                     "agentId": rslt.iloc[0]['agent_id'],
                     # "limit": int(math.floor(rslt.iloc[0][tenures[str(rslt.iloc[0]['tenure'])]])),
-                    "3_day_limit": int(math.floor(rslt.iloc[0][tenures[str(3)]])),
-                    "7_day_limit": int(math.floor(rslt.iloc[0][tenures[str(7)]])),
+                    "final_3_day_limit": int(math.floor(rslt.iloc[0][tenures[str(3)]])),
+                    "final_7_day_limit": int(math.floor(rslt.iloc[0][tenures[str(7)]])),
                     "createdDate": str(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')),
                     # 'tenure': int(rslt.iloc[0]['tenure']),
-                    'extra': {'3_day_limit_reason': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules', 
-                              '7_day_limit_reason': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules'}
+                    'extra': {'limit_reason_3_day': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules', 
+                              'limit_reason_7_day': 'Success' if rslt.iloc[0]['is_qualified'] else 'Client does not pass business rules'}
                 }
 
     res = share_scoring_results(config_path, str(agent_id).strip().lower(), callback_url, payload)
