@@ -1,7 +1,10 @@
 # Import modules
 import os
+import json
 import base64
+import logging
 import argparse
+import requests
 import datetime as dt
 from urllib.parse import quote_plus
 
@@ -11,6 +14,7 @@ import pymysql
 import psycopg2
 import numpy as np 
 import pandas as pd
+from tzlocal import get_localzone
 from IPython.display import display
 from sqlalchemy import create_engine
 
@@ -94,7 +98,7 @@ def db_connection(dwh_credentials, prefix, project_dir):
     conn = create_engine(conn_str)
 
     # Logs
-    print("Connection successful")
+    logging.warning(f'Connection successful')
     
     return conn
 
@@ -104,6 +108,118 @@ def query_dwh(sql, dwh_credentials, prefix, project_dir, kwargs=None):
     df = pd.read_sql(sql, conn, params=kwargs)
 
     return df
+
+
+def post_to_dwh(df, dwh_credentials, upload_data_config, prefix, project_dir):
+    schema = upload_data_config['schema']
+    table = upload_data_config['table']
+    if_exists = upload_data_config['if_exists']
+    index = upload_data_config['index']
+    chunksize = upload_data_config['chunksize']
+    method = upload_data_config['method']
+    
+    conn = db_connection(dwh_credentials, prefix, project_dir)
+    response = df.to_sql(name=table, con=conn, schema=schema, if_exists=if_exists, index=index, chunksize=chunksize, method=method)
+    
+    return response
+
+
+def trigger_scoring_script(config_path, agent_id):  
+    # Load configurations
+    config = read_params(config_path)
+    project_dir = config["project_dir"]
+    airflow_credentials = config["db_credentials"]
+    prefix = config["airflow_api_config"]['prefix']
+    trigger_api = config["airflow_api_config"]['trigger_api']
+    airflow_dag_path = config["airflow_api_config"]['airflow_dag_path']
+    airflow_pipeline_name = config["airflow_api_config"]['airflow_pipeline_name']
+    headers_content_type = config["airflow_api_config"]['headers_content_type']
+    headers_accept = config["airflow_api_config"]['headers_accept']
+    conf_is_initial_run = config["airflow_api_config"]['conf_is_initial_run']
+    verify = config["airflow_api_config"]['verify']
+    callback_url = config["airflow_api_config"]['callback_url']
+    scoring_script_name = config["airflow_api_config"]['scoring_script_name']
+    
+    # Parameters
+    local_tz = get_localzone()
+    execution_date = str(dt.datetime.now().replace(tzinfo=local_tz))
+    airflow_dag_url = airflow_dag_path.format(airflow_pipeline_name)
+    
+    # Decrypt credentials
+    airflow_credentials_decrypted = decrypt_credentials(airflow_credentials, prefix, project_dir)
+    host = airflow_credentials_decrypted[f'{prefix}_HOST']
+    user = airflow_credentials_decrypted[f'{prefix}_USER']
+    password = airflow_credentials_decrypted[f'{prefix}_PASSWORD']
+
+    # Logs
+    print('')
+    logging.warning(f'Triggering airflow {scoring_script_name.lower()} scoring script for {agent_id} ...')
+    logging.warning(f'URL: {host}{airflow_dag_url}')
+
+    conf = {'agent_id': agent_id}
+
+    payload = {"execution_date": execution_date,
+               "conf": conf}
+    
+    # Trigger Airflow DAG
+    if trigger_api == True:
+        response = requests.post(url=f'{host}{airflow_dag_url}',
+                                headers={'Content-type': f'{headers_content_type}',
+                                         'Accept': f'{headers_accept}'},
+                                json=payload,
+                                auth=requests.auth.HTTPBasicAuth(f"{user}", f'{password}'),
+                                verify=verify)
+        
+        # Print response
+        print('')
+        logging.warning(f'--------------- Response ---------------\n status_code: {response.status_code}\n {response.text}')
+        
+        return response
+    else:
+        # Exit
+        logging.warning(f"{scoring_script_name} scoring pipeline is NOT triggered because trigger_api flag = {trigger_api}")
+
+
+def share_scoring_results(config_path, agent_id, callback_url, payload):  
+    # Load configurations
+    config = read_params(config_path)
+    project_dir = config["project_dir"]
+    api_credentials = config["db_credentials"]
+    prefix = config["digital_api_config"]['prefix']
+    share_limits = config["digital_api_config"]['share_limits']
+    headers_content_type = config["digital_api_config"]['headers_content_type']
+    scoring_script_name = config["airflow_api_config"]['scoring_script_name']
+    verify = config["digital_api_config"]['verify']
+    
+    # Decrypt credentials
+    api_credentials_decrypted = decrypt_credentials(api_credentials, prefix, project_dir)
+    api_host = api_credentials_decrypted[f'{prefix}_HOST']
+    api_username = api_credentials_decrypted[f'{prefix}_USER']
+    api_password = api_credentials_decrypted[f'{prefix}_PASSWORD']
+
+    # Logs
+    print('')
+    logging.warning(f'Sharing {scoring_script_name.lower()} limits for {agent_id} ...')
+    logging.warning(f'URL: {callback_url}')
+    
+    # Share Limits
+    if share_limits == True:
+        response = requests.post(
+            url=callback_url,
+            headers={'Content-Type': f'{headers_content_type}'},
+            json=payload,
+            auth=requests.auth.HTTPBasicAuth(f'{api_username}', f'{api_password}'),
+            verify=verify
+            )
+
+        # Print response
+        print('')
+        logging.warning(f'--------------- Response ---------------\n status_code: {response.status_code}\n {response.text}')
+        
+        return response
+    else:
+        # Exit
+        logging.warning(f"{scoring_script_name} limits for {agent_id} NOT shared because share_limits flag = {share_limits}")
 
 
 # Run code

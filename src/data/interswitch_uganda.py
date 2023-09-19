@@ -238,7 +238,7 @@ def load_staging_db_data(config_path, terminal_id: str):
     dwh_credentials = config["db_credentials"]
     prefix = "ISW"
 
-    print('\nPull customer info ...')
+    logging.warning(f'Pull customer info ...')
     sql_cust_info = f"""
         SELECT TerminalId as terminal, MifosClientId as client_id FROM Customers where TerminalId = %(terminal_id)s
         """
@@ -269,9 +269,9 @@ def load_loans_data(config_path, mifos_client_id: int, mifos_product_id: int) ->
     dwh_credentials = config["db_credentials"]
     prefix = "MIFOS"
 
-    print('\nPull loans data ...')
-    print(f'Mifos client ID: {mifos_client_id}')
-    print(f'Mifos product ID: {mifos_product_id}')
+    logging.warning(f'Pull loans data ...')
+    logging.warning(f'Mifos client ID: {mifos_client_id}')
+    logging.warning(f'Mifos product ID: {mifos_product_id}')
 
     sql_loans = f"""
         SELECT 
@@ -305,7 +305,7 @@ def load_transactions_data(config_path, client_id):
     dwh_credentials = config["db_credentials"]
     prefix = "MIFOS"
 
-    print('\nPull transactions data ...')
+    logging.warning(f'Pull transactions data ...')
     sql_txn = f"""
         SELECT 
                 mlt.loan_id, mlt.transaction_date, mlt.amount 
@@ -561,16 +561,21 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
 
     final_df['repayment_band'] = final_df.apply(lambda x: calculate_repayments_bands(x), axis=1)
 
-    final_df['limit_factor'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
+    final_df['limit_factor_3_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
+    # final_df['limit_factor_7_day'] = final_df.apply(lambda x: calculate_limit_factor(x), axis=1)
 
     # #### Limit Allocation
-    final_df['minimum_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor']
+    final_df['minimum_3_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_3_day']
+    # final_df['minimum_7_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_7_day']
 
-    final_df['rounded_limit'] = final_df['minimum_limit'].apply(round_off)
+    final_df['rounded_3_day_limit'] = final_df['minimum_3_day_limit'].apply(round_off)
+    # final_df['rounded_7_day_limit'] = final_df['minimum_7_day_limit'].apply(round_off)
 
-    final_df['final_3_day_limit'] = final_df['rounded_limit'].apply(amounts_cap)
+    final_df['final_3_day_limit'] = final_df['rounded_3_day_limit'].apply(amounts_cap)
+    # final_df['final_7_day_limit'] = final_df['rounded_7_day_limit'].apply(amounts_cap)
 
     final_df['final_3_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
+    # final_df['final_7_day_limit'] = final_df.apply(lambda x: determine_limit_for_first_loan(x), axis=1)
 
     final_df["scoring_refresh_date"] = get_scoring_refresh_date()
 
@@ -592,7 +597,7 @@ def get_prev_scoring_results(config_path, terminal:str):
     dwh_credentials = config["db_credentials"]
     prefix = "DWH"
 
-    print('\nPull previous scoring results ...')
+    logging.warning(f'Pull previous scoring results ...')
     sql_prev_scoring_results = f"""
         SELECT terminal, final_3_day_limit as previous_limit FROM interswitch_ug.scoring_results_view where terminal = %(terminal)s
         """
@@ -615,43 +620,148 @@ def get_prev_month_scoring_results(config_path, terminal:str):
     snapshot_weeks = config["snapshot_weeks"]
     prefix = "DWH"
 
-    print('\nPull previous month scoring results ...')
+    logging.warning(f'Pull previous month scoring results ...')
+    # sql_prev_month_scoring_results = f"""
+    #     WITH sr_prev_m AS (
+    #                         SELECT
+    #                             sr_prev_m.terminal 
+    #                             ,MAX(sr_prev_m.model_version) AS previous_snapshot_model_version
+    #                             ,MAX(sr_prev_m.id) AS id
+    #                         FROM interswitch_ug.scoring_results sr_prev_m 
+    #                         --WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+    #                         WHERE SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE < NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL
+    #                             AND sr_prev_m.terminal = %(terminal)s
+    #                         GROUP BY 
+    #                             sr_prev_m.terminal
+    #                         )
+    #     SELECT 
+    #         sr_prev_m.terminal 
+    #         --,sr_prev_m.id
+    #         --,sr_prev_m.previous_snapshot_model_version
+    #         ,sr.final_3_day_limit AS previous_snapshot_limit
+    #     FROM sr_prev_m
+    #     LEFT JOIN interswitch_ug.scoring_results sr
+    #         ON sr_prev_m.terminal = sr.terminal
+    #         AND sr_prev_m.previous_snapshot_model_version = sr.model_version
+    #         AND sr_prev_m.id = sr.id
+    #     WHERE sr.final_3_day_limit IS NOT NULL
+    #         AND sr_prev_m.terminal = %(terminal)s
+    #     /*ORDER BY 
+    #         sr.model_version DESC*/
+    #     """
+    
     sql_prev_month_scoring_results = f"""
         WITH sr_prev_m AS (
                             SELECT
                                 sr_prev_m.terminal 
-                                ,MAX(sr_prev_m.model_version) AS previous_model_version
+                                ,MAX(sr_prev_m.model_version) AS previous_m_model_version
                                 ,MAX(sr_prev_m.id) AS id
                             FROM interswitch_ug.scoring_results sr_prev_m 
-                            WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                            --WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                            WHERE SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE < NOW()::DATE - '1month'::INTERVAL
                                 AND sr_prev_m.terminal = %(terminal)s
                             GROUP BY 
                                 sr_prev_m.terminal
+                            ),
+            sr_prev_2m AS (
+                            SELECT
+                                sr_prev_m.terminal 
+                                ,MAX(sr_prev_m.model_version) AS previous_2m_model_version
+                                ,MAX(sr_prev_m.id) AS id
+                            FROM interswitch_ug.scoring_results sr_prev_m 
+                            --WHERE DATE_PART('week', SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE) < DATE_PART('week', NOW()::DATE - '{snapshot_weeks}weeks'::INTERVAL)
+                            WHERE SUBSTRING(sr_prev_m.model_version,'\s.*\d')::DATE < NOW()::DATE - '2months'::INTERVAL
+                                AND sr_prev_m.terminal = %(terminal)s
+                            GROUP BY 
+                                sr_prev_m.terminal
+                            ),
+            limit_prev_m AS (
+                            SELECT 
+                                sr_prev_m.terminal 
+                                --,sr_prev_m.id
+                                --,sr_prev_m.previous_m_model_version
+                                ,sr.final_3_day_limit AS previous_m_limit
+                            FROM sr_prev_m
+                            LEFT JOIN interswitch_ug.scoring_results sr
+                                ON sr_prev_m.terminal = sr.terminal
+                                AND sr_prev_m.previous_m_model_version = sr.model_version
+                                AND sr_prev_m.id = sr.id
+                            WHERE sr.final_3_day_limit IS NOT NULL
+                                AND sr_prev_m.terminal = %(terminal)s
+                            /*ORDER BY 
+                                sr.model_version DESC*/
+                            ),
+            limit_prev_2m AS (
+                            SELECT 
+                                sr_prev_2m.terminal 
+                                --,sr_prev_2m.id
+                                --,sr_prev_2m.previous_m_model_version
+                                ,sr.final_3_day_limit AS previous_2m_limit
+                            FROM sr_prev_2m
+                            LEFT JOIN interswitch_ug.scoring_results sr
+                                ON sr_prev_2m.terminal = sr.terminal
+                                AND sr_prev_2m.previous_2m_model_version = sr.model_version
+                                AND sr_prev_2m.id = sr.id
+                            WHERE sr.final_3_day_limit IS NOT NULL
+                                AND sr_prev_2m.terminal = %(terminal)s
+                            /*ORDER BY 
+                                sr.model_version DESC*/
                             )
         SELECT 
-            sr_prev_m.terminal 
-            --,sr_prev_m.id
-            --,sr_prev_m.previous_model_version
-            ,sr.final_3_day_limit AS previous_month_limit
-        FROM sr_prev_m
-        LEFT JOIN interswitch_ug.scoring_results sr
-            ON sr_prev_m.terminal = sr.terminal
-            AND sr_prev_m.previous_model_version = sr.model_version
-            AND sr_prev_m.id = sr.id
-        WHERE sr.final_3_day_limit IS NOT NULL
-            AND sr_prev_m.terminal = %(terminal)s
-        /*ORDER BY 
-            model_version DESC*/
+            limit_prev_m.terminal 
+            ,limit_prev_m.previous_m_limit
+            ,limit_prev_2m.previous_2m_limit
+        FROM limit_prev_m
+        LEFT JOIN  limit_prev_2m
+            ON limit_prev_m.terminal = limit_prev_2m.terminal
         """
     prev_month_scoring_results = query_dwh(sql_prev_month_scoring_results, dwh_credentials, prefix, project_dir, {'terminal': terminal})
 
+    # if prev_month_scoring_results.empty:
+    #     prev_month_scoring_results = pd.DataFrame({
+    #         'terminal': [terminal],
+    #         'previous_snapshot_limit': [0]
+    #     }, index=[0])
+    
     if prev_month_scoring_results.empty:
         prev_month_scoring_results = pd.DataFrame({
             'terminal': [terminal],
-            'previous_month_limit': [0]
+            'previous_m_limit': [0],
+            'previous_2m_limit': [0]
         }, index=[0])
 
     return prev_month_scoring_results
+
+
+def determine_if_to_graduate_based_prev(df):
+    current_limit = df['current_limit']
+    previous_limit = df['previous_limit']
+
+    if current_limit == 0:
+        return current_limit
+    elif previous_limit == 0:
+        return current_limit
+    elif current_limit >= (previous_limit * 1.5):
+        return previous_limit * 1.5
+    elif current_limit >= (previous_limit * 0.85) and current_limit <= (previous_limit * 1.15):
+        return previous_limit
+    else:
+        return current_limit
+
+
+def determine_if_to_graduate_based_prev_2m(df):
+    limit_after_stabilisation = df['limit_after_stabilisation']
+    previous_limit = df['previous_limit']
+    previous_2m_limit = df['previous_2m_limit']
+
+    if limit_after_stabilisation == 0:
+        return limit_after_stabilisation
+    elif previous_limit > previous_2m_limit:
+        return previous_limit
+    elif (previous_limit < previous_2m_limit) & (limit_after_stabilisation > previous_limit):
+        return previous_limit
+    else:
+        return limit_after_stabilisation
 
 
 def determine_if_to_graduate(df):
@@ -659,41 +769,51 @@ def determine_if_to_graduate(df):
     loan_count = df['count_of_loans']
     current_limit = df['current_limit']
     previous_limit = df['previous_limit']
-    previous_month_limit = df['previous_month_limit']
+    # previous_snapshot_limit = df['previous_snapshot_limit']
 
-    # if current_limit == 0:
-    #     return current_limit
-    # elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
-    #     return current_limit
-    # elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit > 0:
-    #     return previous_limit
-    # else:
-    #     return current_limit
+    previous_m_limit = df['previous_m_limit']
+    previous_2m_limit = df['previous_2m_limit']
 
     if current_limit == 0:
         return current_limit
-    elif loan_count == 0 and current_limit > 100000:
-        return 100000 # TODO limit cap
-    elif loan_count == 0 and current_limit <= 100000:
-        return current_limit # TODO limit cap
-    elif current_limit <= previous_limit:
+    elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit == 0:
         return current_limit
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit > 100000:
-        return 100000 # TODO limit cap
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit == 0 and current_limit <= 100000:
-        return current_limit # TODO limit cap
-    elif np.isnan(previous_month_limit) and loan_count > 0 and previous_limit > 0:
+    elif months_since_last_disbursement <= 1 and loan_count > 1 and previous_limit > 0:
         return previous_limit
-    elif previous_month_limit > 0 and loan_count > 0 and previous_limit > 0 and current_limit >= previous_limit * 1.5:
-        return previous_limit * 1.5
     else:
         return current_limit
 
+    # if current_limit == 0:
+    #     return current_limit
+    # elif current_limit <= previous_limit:
+    #     return current_limit
+    # elif np.isnan(previous_snapshot_limit) and previous_limit == 0:
+    #     return current_limit
+    # elif np.isnan(previous_snapshot_limit) and previous_limit > 0:
+    #     return previous_limit
+    # elif current_limit >= previous_snapshot_limit:
+    #     return current_limit
+    # else:
+    #     return current_limit
+    
+    # if current_limit == 0:
+    #     return current_limit
+    # elif current_limit <= previous_limit:
+    #     return current_limit
+    # else:
+    #     return current_limit
+
 
 def determine_if_qualified(df):
+    df['is_3_days_qualified'] = False
+    df['is_7_days_qualified'] = False
     df['is_qualified'] = False
 
-    df.loc[(df['final_3_day_limit'] > 0) & (df['total_score'] >= 600), 'is_qualified'] = True
+    df.loc[(df['final_3_day_limit'] > 0) & (df['total_score'] >= 600), 'is_3_days_qualified'] = True
+    df.loc[(df['final_7_day_limit'] > 0) & (df['total_score'] >= 600), 'is_7_days_qualified'] = True
+
+    df['is_qualified'] = np.where((df['is_3_days_qualified'] == True) | 
+                                  (df['is_7_days_qualified'] == True), True,  df['is_qualified'])
 
     return df
 
@@ -705,7 +825,7 @@ def rules_summary_narration(df):
     average_daily_debit_score_ = df['average_daily_debit_score']
     unique_number_of_commissions_score_ = df['unique_number_of_commissions_score']
     total_score = df['total_score']
-    limit_factor = df['limit_factor']
+    limit_factor = df['limit_factor_3_day']
     ## not found in table
     final_allocated_limit_3_day = df['final_3_day_limit']
     is_qualified = df['is_qualified']
@@ -732,9 +852,13 @@ def rules_summary_narration(df):
 
 def get_scoring_results(config_path, raw_data) -> str or None:
     config = read_params(config_path)
+    project_dir = config['project_dir']
     product_ids = config['product_ids']
-    table = config['upload_config']['table']
-    target_fields = config['upload_config']['target_fields']
+    dwh_credentials = config["db_credentials"]
+    upload_data_config = config["upload_data_config"]
+    prefix = upload_data_config['prefix']
+    target_fields = upload_data_config['target_fields']
+    scoring_response_data_path_json = config["scoring_response_data_path_json"]
 
     failure_reason = None
     product_id = tuple(product_ids)
@@ -776,7 +900,7 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         previous_results = get_prev_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
 
-        current_results = results[['terminal', 'final_3_day_limit']]
+        current_results = results[['terminal', 'final_3_day_limit']].copy()
         current_results.rename(columns={'final_3_day_limit': 'current_limit'}, inplace=True)
 
         scoring_results = pd.merge(previous_results, current_results, on='terminal')
@@ -784,15 +908,18 @@ def get_scoring_results(config_path, raw_data) -> str or None:
 
         results = pd.merge(results, scoring_results, on='terminal')
 
-        previous_month_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
-
-        results = pd.merge(results, previous_month_results, on='terminal')
+        previous_snapshot_results = get_prev_month_scoring_results(config_path, terminal=client_data.iloc[0]['terminal'])
+         
+        results = pd.merge(results, previous_snapshot_results, on='terminal')
+        results['previous_m_limit'].fillna(0, inplace=True)
+        results['previous_2m_limit'].fillna(0, inplace=True)
         # TODO fillna treatment
 
-        results['final_3_day_limit'] = results.apply(
-            lambda x: determine_if_to_graduate(x),
-            axis=1
-        )
+        # Limit stabilisation
+        # results['final_3_day_limit'] = results.apply(lambda x: determine_if_to_graduate(x), axis=1)
+        results['limit_after_stabilisation'] = results.apply(lambda x: determine_if_to_graduate_based_prev(x), axis=1)
+        results['final_3_day_limit'] = results.apply(lambda x: determine_if_to_graduate_based_prev_2m(x), axis=1)
+        results['final_7_day_limit'] = results['final_3_day_limit'] 
 
         results = determine_if_qualified(results)
 
@@ -801,11 +928,11 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         results[['rules_summary_narration', "communication_to_client", "limit_reason_code"]] = results[
             "rules_summary_narration"].astype("str").str.split(":", expand=True)
 
-        results['tenure'] = 3
+        # results['tenure'] = 3
 
         results = results.head(n=1)
-
         results.rename(columns={'%repayment_by_dpd_7': 'percentage_repayment_by_dpd_7'}, inplace=True)
+        results.replace({np.NAN: None}, inplace=True)
 
         # warehouse_hook.insert_rows(
         #     table='interswitch_ug.scoring_results',
@@ -847,7 +974,10 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         #     commit_every=1
         # )
 
-        print('\nUpload scoring results ...')
+        logging.warning(f'Upload scoring results ...')
+        # TODO 
+        # ['limit_factor_3_day', 'minimum_3_day_limit', 'rounded_3_day_limit', 'previous_snapshot_limit', 'is_3_days_qualified', 'is_7_days_qualified', 'final_7_day_limit',
+        # 'previous_m_limit', 'previous_2m_limit', 'limit_after_stabilisation']
         display(results[target_fields])
 
         # warehouse_hook.insert_rows(
@@ -857,6 +987,18 @@ def get_scoring_results(config_path, raw_data) -> str or None:
         #     rows=tuple(results[target_fields].replace({np.NAN: None}).itertuples(index=False, name=None)),
         #     commit_every=1
         # )
+
+        # response = post_to_dwh(results[target_fields], dwh_credentials, upload_data_config, prefix, project_dir)
+
+        # print('')
+        # logging.warning(f'--------------- Store generated limits response ---------------\n : {response}')
+    
+    extra = {'failure_reason': failure_reason}
+    with open(project_dir + scoring_response_data_path_json, 'w', encoding='utf-8') as f:
+        json.dump(extra, f, ensure_ascii=False, indent=4)
+    
+    print('')
+    logging.warning(f'--------------- Scoring failure reason ---------------\n {extra}')
 
     return failure_reason
 
@@ -874,7 +1016,7 @@ def combine_files(config_path, agent_id):
         bucket_name_clean = config['s3_config']['bucket_name_clean']
         bucket_key_prefix_clean = config['s3_config']['bucket_key_prefix_clean']
 
-        print('\nPull raw data ...')
+        logging.warning(f'Pull raw data ...')
         files = get_objects(
             search=agent_id,
             bucket_name=bucket_name_raw
@@ -899,7 +1041,7 @@ def combine_files(config_path, agent_id):
                 csv_buffer = StringIO()
                 combined.to_csv(path_or_buf=csv_buffer, index=False)
 
-                print('\nUpload clean data ...')
+                logging.warning(f'Upload clean data ...')
                 # save_file_to_s3(
                 #     s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
                 #     bucket_name='afsg-ds-prod-postgresql-dwh-archive',
@@ -919,6 +1061,9 @@ def combine_files(config_path, agent_id):
 
 
 def trigger_scoring(config_path, agent_id):
+    print('')
+    logging.warning(f'Scoring {agent_id} ...')
+
     if agent_id is not None:
         raw_data = combine_files(config_path, agent_id)
         if raw_data is not None:
@@ -926,7 +1071,7 @@ def trigger_scoring(config_path, agent_id):
             return True
         else:
             raise pd.errors.EmptyDataError
-
+    
     return False
 
 
@@ -934,9 +1079,10 @@ if __name__ == "__main__":
     # Parameter arguments
     args = argparse.ArgumentParser()
     args.add_argument("--config", default="params.yaml")
-    args.add_argument("--agent_id", default="3IS02066")
+    # args.add_argument("--agent_id", default="3IS02066")
     parsed_args = args.parse_args()
 
-    print(f'\nScoring {parsed_args.agent_id} ...')
-    print(trigger_scoring(parsed_args.config, agent_id=parsed_args.agent_id))
-    print('=============================================================================\n')
+    response = trigger_scoring(parsed_args.config, agent_id=read_params(parsed_args.config)['test_config']['agent_id'])
+    print('')
+    logging.warning(f'--------------- Scoring response ---------------\n {response}')
+    print('\n=============================================================================\n')
