@@ -1,4 +1,4 @@
-ug_isw
+ug_interswitch
 ==============================
 
 Interswitch Uganda decisioning engine
