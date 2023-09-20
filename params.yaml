@@ -10,6 +10,22 @@ db_credentials:
 
 product_ids : [2, 3]
 snapshot_weeks: 8
+limit_factors:
+    loan_band_1_limit: 0.119
+    loan_band_2_and_repaymnet_band_4: 0.083
+    loan_band_2_and_repaymnet_band_5: 0.108
+    loan_band_2_and_repaymnet_band_6: 0.128
+    loan_band_3_and_repaymnet_band_4: 0.098
+    loan_band_3_and_repaymnet_band_5: 0.123
+    loan_band_3_and_repaymnet_band_6: 0.136
+    loan_band_4_and_repaymnet_band_4: 0.113
+    loan_band_4_and_repaymnet_band_5: 0.138
+    loan_band_4_and_repaymnet_band_6: 0.145
+    loan_band_5_and_repaymnet_band_4: 0.128
+    loan_band_5_and_repaymnet_band_5: 0.153
+    loan_band_5_and_repaymnet_band_6: 0.17
+    else: 0.00
+
 
 scoring_response_data_path_json: 'data/processed/scoring_response.json'
 

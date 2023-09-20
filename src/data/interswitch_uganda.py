@@ -350,6 +350,26 @@ def calculate_repayments_bands(df):
         return 'Band 5'
     elif repayments >= 100:
         return 'Band 6'
+    
+    
+def read_yaml_file(path):
+    """
+    Input - file_path (path to the YAML file)
+    Output - Dictionary containing the YAML data
+    """
+    
+    
+    with open(path, 'r') as params_file:
+        
+        limits = yaml.safe_load(params_file)
+        
+    return limits
+
+
+
+
+
+
 
 
 def calculate_limit_factor(df):
@@ -361,37 +381,71 @@ def calculate_limit_factor(df):
     Output - Limit factor based on inputs
 
     """
+    
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    
+    path = os.path.abspath(os.path.join(script_path, '..', '..', 'params.yaml'))
+    
+    
+    yaml_data = read_yaml_file(path)
+    limit_factors = yaml_data.get('limit_factors')
 
     loan_band = df['loan_band']
     repayment_band = df['repayment_band']
 
     if loan_band == 'Band 1':
-        return 0.119
+        
+        return  limit_factors.get('loan_band_1_limit')
+        
     elif loan_band == 'Band 2' and repayment_band == 'Band 4':
-        return 0.083
+        
+        return limit_factors.get('loan_band_2_and_repayment_band_4')
+    
     elif loan_band == 'Band 2' and repayment_band == 'Band 5':
-        return 0.108
+        
+        return limit_factors.get('loan_band_2_and_repayment_band_5')
+    
     elif loan_band == 'Band 2' and repayment_band == 'Band 6':
-        return 0.128
+        
+        return limit_factors.get('loan_band_2_and_repayment_band_6')
+    
     elif loan_band == 'Band 3' and repayment_band == 'Band 4':
-        return 0.098
+        
+        return limit_factors.get('loan_band_3_and_repayment_band_4')
+    
     elif loan_band == 'Band 3' and repayment_band == 'Band 5':
-        return 0.123
+        
+        return limit_factors.get('loan_band_3_and_repayment_band_5')
+    
     elif loan_band == 'Band 3' and repayment_band == 'Band 6':
-        return 0.136
+        
+        return limit_factors.get('loan_band_3_and_repayment_band_6')
+    
     elif loan_band == 'Band 4' and repayment_band == 'Band 4':
-        return 0.113
+        
+        return limit_factors.get('loan_band_4_and_repayment_band_4')
+    
     elif loan_band == 'Band 4' and repayment_band == 'Band 5':
-        return 0.138
+        
+        return limit_factors.get('loan_band_4_and_repayment_band_5')
+    
     elif loan_band == 'Band 4' and repayment_band == 'Band 6':
-        return 0.145
+        
+        return limit_factors.get('loan_band_4_and_repayment_band_6')
+    
     elif loan_band == 'Band 5' and repayment_band == 'Band 4':
-        return 0.128
+        
+        return limit_factors.get('loan_band_5_and_repayment_band_4')
+    
     elif loan_band == 'Band 5' and repayment_band == 'Band 5':
-        return 0.153
+        
+        return limit_factors.get('loan_band_5_and_repayment_band_5')
+    
     elif loan_band == 'Band 5' and repayment_band == 'Band 6':
-        return 0.17
+        
+        return limit_factors.get('loan_band_5_and_repayment_band_6')
     else:
+       # return limit_factors.get('else')
         return 0.0
 
 
@@ -399,7 +453,9 @@ def round_off(n):
     """
     This function rounds off elements by setting a ceiling to the next 100
     """
-    return int(math.ceil(n / 100.0)) * 100
+        return int(math.ceil(n / 100.0)) * 100
+
+    
 
 
 def amounts_cap(n):
@@ -1024,6 +1080,14 @@ def combine_files(config_path, agent_id):
 
         if len(files) > 0:
             combined = pd.concat([x['data'] for x in files], ignore_index=True)
+            
+            
+            
+   
+            # Check if combined is empty
+            if combined.empty:
+                logging.warning(f'Combined DataFrame is empty')
+                return None
 
             combined['Balance'] = combined['Balance'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
             combined['CreditAmount'] = combined['CreditAmount'].apply(lambda x: float(str(x).replace(',', '')) if not pd.isnull(x) else x)
