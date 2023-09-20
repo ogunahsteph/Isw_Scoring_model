@@ -453,7 +453,11 @@ def round_off(n):
     """
     This function rounds off elements by setting a ceiling to the next 100
     """
+    if not np.isnan(n):
+        
         return int(math.ceil(n / 100.0)) * 100
+    else:
+        return 0
 
     
 
