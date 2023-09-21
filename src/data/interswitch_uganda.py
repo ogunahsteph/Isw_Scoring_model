@@ -382,6 +382,8 @@ def calculate_limit_factor(df):
 
     """
     
+   
+     
     script_path = os.path.dirname(os.path.abspath(__file__))
     
     path = os.path.abspath(os.path.join(script_path, '..', '..', 'params.yaml'))
@@ -389,9 +391,42 @@ def calculate_limit_factor(df):
     
     yaml_data = read_yaml_file(path)
     limit_factors = yaml_data.get('limit_factors')
+    limit = yaml_data.get('limit_factors')
 
     loan_band = df['loan_band']
     repayment_band = df['repayment_band']
+    
+    print(limit_factors.get('loan_band_2_and_repaymnet_band_6'))
+    print(type(limit_factors.get('loan_band_1_limit')))
+    print("___________________________________")
+    # if loan_band == 'Band 1':
+    #     return 0.119
+    # elif loan_band == 'Band 2' and repayment_band == 'Band 4':
+    #     return 0.083
+    # elif loan_band == 'Band 2' and repayment_band == 'Band 5':
+    #     return 0.108
+    # elif loan_band == 'Band 2' and repayment_band == 'Band 6':
+    #     return 0.128
+    # elif loan_band == 'Band 3' and repayment_band == 'Band 4':
+    #     return 0.098
+    # elif loan_band == 'Band 3' and repayment_band == 'Band 5':
+    #     return 0.123
+    # elif loan_band == 'Band 3' and repayment_band == 'Band 6':
+    #     return 0.136
+    # elif loan_band == 'Band 4' and repayment_band == 'Band 4':
+    #     return 0.113
+    # elif loan_band == 'Band 4' and repayment_band == 'Band 5':
+    #     return 0.138
+    # elif loan_band == 'Band 4' and repayment_band == 'Band 6':
+    #     return 0.145
+    # elif loan_band == 'Band 5' and repayment_band == 'Band 4':
+    #     return 0.128
+    # elif loan_band == 'Band 5' and repayment_band == 'Band 5':
+    #     return 0.153
+    # elif loan_band == 'Band 5' and repayment_band == 'Band 6':
+    #     return 0.17
+    # else:
+    #     return 0.0
 
     if loan_band == 'Band 1':
         
@@ -399,65 +434,63 @@ def calculate_limit_factor(df):
         
     elif loan_band == 'Band 2' and repayment_band == 'Band 4':
         
-        return limit_factors.get('loan_band_2_and_repayment_band_4')
+        return limit_factors.get('loan_band_2_and_repaymnet_band_4')
     
     elif loan_band == 'Band 2' and repayment_band == 'Band 5':
         
-        return limit_factors.get('loan_band_2_and_repayment_band_5')
+        return limit_factors.get('loan_band_2_and_repaymnet_band_5')
     
     elif loan_band == 'Band 2' and repayment_band == 'Band 6':
         
-        return limit_factors.get('loan_band_2_and_repayment_band_6')
+        return limit_factors.get('loan_band_2_and_repaymnet_band_6')
     
     elif loan_band == 'Band 3' and repayment_band == 'Band 4':
         
-        return limit_factors.get('loan_band_3_and_repayment_band_4')
+        return limit_factors.get('loan_band_3_and_repaymnet_band_4')
     
     elif loan_band == 'Band 3' and repayment_band == 'Band 5':
         
-        return limit_factors.get('loan_band_3_and_repayment_band_5')
+        return limit_factors.get('loan_band_3_and_repaymnet_band_5')
     
     elif loan_band == 'Band 3' and repayment_band == 'Band 6':
         
-        return limit_factors.get('loan_band_3_and_repayment_band_6')
+        return limit_factors.get('loan_band_3_and_repaymnet_band_6')
     
     elif loan_band == 'Band 4' and repayment_band == 'Band 4':
         
-        return limit_factors.get('loan_band_4_and_repayment_band_4')
+        return limit_factors.get('loan_band_4_and_repaymnet_band_4')
     
     elif loan_band == 'Band 4' and repayment_band == 'Band 5':
         
-        return limit_factors.get('loan_band_4_and_repayment_band_5')
+        return limit_factors.get('loan_band_4_and_repaymnet_band_5')
     
     elif loan_band == 'Band 4' and repayment_band == 'Band 6':
         
-        return limit_factors.get('loan_band_4_and_repayment_band_6')
+        return limit_factors.get('loan_band_4_and_repaymnet_band_6')
     
     elif loan_band == 'Band 5' and repayment_band == 'Band 4':
         
-        return limit_factors.get('loan_band_5_and_repayment_band_4')
+        return limit_factors.get('loan_band_5_and_repaymnet_band_4')
     
     elif loan_band == 'Band 5' and repayment_band == 'Band 5':
         
-        return limit_factors.get('loan_band_5_and_repayment_band_5')
+        return limit_factors.get('loan_band_5_and_repaymnet_band_5')
     
     elif loan_band == 'Band 5' and repayment_band == 'Band 6':
         
-        return limit_factors.get('loan_band_5_and_repayment_band_6')
+        return limit_factors.get('loan_band_5_and_repaymnet_band_6')
     else:
-       # return limit_factors.get('else')
-        return 0.0
-
+        return limit_factors.get('else')
+        
 
 def round_off(n):
     """
     This function rounds off elements by setting a ceiling to the next 100
     """
-    if not np.isnan(n):
+  
         
-        return int(math.ceil(n / 100.0)) * 100
-    else:
-        return 0
+    return int(math.ceil(n / 100.0)) * 100
+    
 
     
 
@@ -627,7 +660,6 @@ def calculate_scores(data: pd.DataFrame, loans_data_staging: pd.DataFrame, trans
     # #### Limit Allocation
     final_df['minimum_3_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_3_day']
     # final_df['minimum_7_day_limit'] = final_df['average_daily_debit_amt'] * 30 * final_df['limit_factor_7_day']
-
     final_df['rounded_3_day_limit'] = final_df['minimum_3_day_limit'].apply(round_off)
     # final_df['rounded_7_day_limit'] = final_df['minimum_7_day_limit'].apply(round_off)
 
