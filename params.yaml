@@ -80,6 +80,6 @@ digital_api_config:
   share_limits: False
 
 test_config:
-  agent_id: "3IS12910"
+  agent_id: "3IS08058"
   terminal_ids: ["3IS16325", "3IS12910", "3IS34786",
                 "3IS00720", "3IS08111"]

@@ -163,6 +163,7 @@ def age_on_network_score(df):
         return 100
     elif age > 5:
         return 200
+    # 6 months max
 
 
 def recency_in_months_score(df):
@@ -336,7 +337,7 @@ def calculate_loan_count_bands(df):
 
 
 def calculate_repayments_bands(df):
-    repayments = df['%repayment_by_dpd_7']
+    repayments = df['']
 
     if repayments >= 0 and repayments <= 29:
         return 'Band 1'
@@ -390,15 +391,17 @@ def calculate_limit_factor(df):
     
     
     yaml_data = read_yaml_file(path)
+    
     limit_factors = yaml_data.get('limit_factors')
+    
     limit = yaml_data.get('limit_factors')
 
     loan_band = df['loan_band']
+    
     repayment_band = df['repayment_band']
     
-    print(limit_factors.get('loan_band_2_and_repaymnet_band_6'))
-    print(type(limit_factors.get('loan_band_1_limit')))
-    print("___________________________________")
+   
+    
     # if loan_band == 'Band 1':
     #     return 0.119
     # elif loan_band == 'Band 2' and repayment_band == 'Band 4':
@@ -1142,16 +1145,16 @@ def combine_files(config_path, agent_id):
                 combined.to_csv(path_or_buf=csv_buffer, index=False)
 
                 logging.warning(f'Upload clean data ...')
-                # save_file_to_s3(
-                #     s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
-                #     bucket_name='afsg-ds-prod-postgresql-dwh-archive',
-                #     file_bytes=csv_buffer.getvalue()
-                # )
                 save_file_to_s3(
-                    s3_file_key=bucket_key_prefix_clean.format(agent_id),
-                    bucket_name=bucket_name_clean,
+                    s3_file_key=f"interswitch_uganda/scoring_data/{agent_id}_cleaned.csv",
+                    bucket_name='afsg-ds-prod-postgresql-dwh-archive',
                     file_bytes=csv_buffer.getvalue()
                 )
+                # save_file_(
+                #     s3_file_key=bucket_key_prefix_clean.format(agent_id),
+                #     bucket_name=bucket_name_clean,
+                #     file_bytes=csv_buffer.getvalue()
+                # )
 
                 return combined
             else:
