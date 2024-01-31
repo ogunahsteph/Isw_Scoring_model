@@ -1,0 +1,25 @@
+schema: '2.0'
+stages:
+  b_trigger_scoring:
+    cmd: python ./src/data/interswitch_uganda.py --config=params.yaml
+    deps:
+    - path: ./src/data/interswitch_uganda.py
+      hash: md5
+      md5: 4f6375ebfe9dd8d9fc4b60a61c96933c
+      size: 52088
+    outs:
+    - path: ./data/processed/scoring_response.json
+      hash: md5
+      md5: 0ab1a8bf55d967a936146bbc60fa7c1e
+      size: 30
+  c_pass_generated_limits_to_engineering:
+    cmd: python ./src/models/scoring_pipeline_interswitch_uganda.py --config=params.yaml
+    deps:
+    - path: ./data/processed/scoring_response.json
+      hash: md5
+      md5: 7f69b0ba49b2edaa828ccbb38e1a00dd
+      size: 32
+    - path: ./src/models/scoring_pipeline_interswitch_uganda.py
+      hash: md5
+      md5: 53ee47d18f43a8885e675c3a157bd7b7
+      size: 10895
